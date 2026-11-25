@@ -127,7 +127,6 @@ are in [docs/security.md](docs/security.md).
 | `~/.config/dadoux01.agenda/settings.json` | your settings |
 | `~/.local/state/dadoux01.agenda/cache.json` | events cache, for offline use |
 | `~/.local/state/dadoux01.agenda/fired.json` | reminders already sent |
-| `~/.local/share/icons/hicolor/scalable/apps/dadoux01-agenda.svg` | the notification icon (installed by the plugin) |
 | system keyring, `service=dadoux01.agenda` | passwords, Google sign-in, private calendar links |
 
 ## Troubleshooting

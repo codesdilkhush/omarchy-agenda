@@ -384,9 +384,8 @@ class ServerTests(IsolatedDirs):
         args = calls[0]
         self.assertEqual(args[-3], "--")
         self.assertEqual(args[-2], "<b>$(rm -rf ~)</b>", "summary is plain text: shown as typed")
-        self.assertEqual(args[args.index("-i") + 1], server.ICON_NAME)
-        with open(server.icon_target(), "rb") as a, open(server.ICON, "rb") as b:
-            self.assertEqual(a.read(), b.read())
+        self.assertEqual(args[args.index("-h") + 1], "string:omarchy-glyph:" + server.GLYPH)
+        self.assertNotIn("-i", args, "an image icon would take the glyph's place")
         self.assertFalse(any(ch in args[-1] for ch in "<>&"), "body must carry no markup characters")
         self.assertIn("evil.example", args[-1])
         self.assertNotIn("-A", args)

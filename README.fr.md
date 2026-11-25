@@ -136,7 +136,6 @@ trousseau du système. Les détails sont dans [docs/security.fr.md](docs/securit
 | `~/.config/dadoux01.agenda/settings.json` | tes réglages |
 | `~/.local/state/dadoux01.agenda/cache.json` | cache des événements, pour le hors-ligne |
 | `~/.local/state/dadoux01.agenda/fired.json` | rappels déjà envoyés |
-| `~/.local/share/icons/hicolor/scalable/apps/dadoux01-agenda.svg` | l'icône des notifications (installée par le plugin) |
 | trousseau système, `service=dadoux01.agenda` | mots de passe, connexion Google, liens de calendrier privés |
 
 ## Dépannage
