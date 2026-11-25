@@ -20,7 +20,7 @@
     "description": "What's on now or next; click for the agenda",
     "category": "Productivity",
     "allowMultiple": false,
-    "defaultSection": "centerEnd",
+    "defaultSection": "right",
     "defaults": {
       "showNext": true,
       "maxLabel": 24

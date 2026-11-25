@@ -50,6 +50,12 @@ d'origine n'est pas modifiée.
 omarchy plugin add https://github.com/dadoux01/omarchy-agenda --enable
 ```
 
+Le widget s'installe à droite de la barre. Pour le mettre juste à côté de l'horloge :
+
+```bash
+omarchy bar move dadoux01.agenda --section centerEnd
+```
+
 Tu peux aussi placer ce dossier dans `~/.config/omarchy/plugins/dadoux01.agenda/`
 puis lancer `omarchy plugin enable dadoux01.agenda --section centerEnd`.
 

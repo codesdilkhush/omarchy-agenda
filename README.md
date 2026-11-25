@@ -46,6 +46,12 @@ built-in clock untouched.
 omarchy plugin add https://github.com/dadoux01/omarchy-agenda --enable
 ```
 
+The widget lands on the right of the bar. To put it next to the clock:
+
+```bash
+omarchy bar move dadoux01.agenda --section centerEnd
+```
+
 Or put this folder at `~/.config/omarchy/plugins/dadoux01.agenda/` and run
 `omarchy plugin enable dadoux01.agenda --section centerEnd`.
 
