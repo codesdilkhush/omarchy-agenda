@@ -2,6 +2,8 @@
 
 *[Lire en français](README.fr.md)*
 
+<p align="center"><img src="docs/screenshots/agenda.png" width="420" alt="The Agenda popup under the Omarchy bar"></p>
+
 Your calendars in the Omarchy bar, as a separate plugin that leaves the
 built-in clock untouched.
 
@@ -25,6 +27,18 @@ built-in clock untouched.
 | Google | ✅ | read and write (your own OAuth client, about 5 minutes once) |
 | `.ics` / `webcal` links (Google or Proton secret address, holidays…) | ✅ | read only |
 | Microsoft / Outlook | planned | read and write (your own app registration) |
+
+## Screenshots
+
+| Event details | New event |
+|---|---|
+| <img src="docs/screenshots/event-details.png" width="380" alt="An event expanded, with Join and Delete"> | <img src="docs/screenshots/new-event.png" width="380" alt="The new event form"> |
+
+| Accounts | Settings |
+|---|---|
+| <img src="docs/screenshots/accounts.png" width="380" alt="Connected accounts and their calendars"> | <img src="docs/screenshots/settings.png" width="380" alt="Reminder, recap and sync settings"> |
+
+*All screenshots use made-up events (see "Demo mode" below).*
 
 ## Install
 
@@ -144,6 +158,19 @@ are in [docs/security.md](docs/security.md).
 - **No notifications**: run **Settings › Send a test notification**, and
   make sure Do Not Disturb is off.
 
+## Limitations
+
+- Microsoft / Outlook accounts are not supported yet. A published Outlook
+  calendar works as a read-only `.ics` link.
+- While your Google OAuth app is in *Testing* mode, Google signs Agenda out
+  every 7 days, and you click **Accounts › Sign in again**.
+- Repeating events are expanded locally. Daily, weekly, monthly and yearly
+  rules are supported, with exceptions and moved occurrences. The rare
+  `BYWEEKNO`, `BYYEARDAY` and `BYHOUR` parts are ignored.
+- The interface is in English and French. Other Omarchy languages fall back
+  to English; translations are welcome (`i18n/<code>.json`).
+- Events can be added and deleted, not edited yet.
+
 ## Development
 
 ```bash
@@ -151,6 +178,15 @@ python3 -m unittest discover -s backend/tests   # parser, recurrence, CalDAV, re
 node --test tests/                               # quick add, grouping, bar label
 omarchy plugin validate .
 ```
+
+### Demo mode
+
+For screenshots without anyone's real calendar, copy
+[docs/demo.json](docs/demo.json) to `~/.local/state/dadoux01.agenda/demo.json`
+and run `omarchy restart shell`. The helper then shows those made-up
+accounts and events, with times relative to today. It contacts no server,
+writes nothing and sends no reminder. Delete the file and restart the shell
+to get your calendars back.
 
 ## License
 

@@ -1,0 +1,112 @@
+{
+ "accounts": [
+  {
+   "label": "iCloud",
+   "kind": "icloud",
+   "username": "ada@icloud.com",
+   "calendars": [
+    {
+     "name": "Work",
+     "color": "#7aa2f7"
+    }
+   ]
+  },
+  {
+   "label": "Google · ada@gmail.com",
+   "kind": "google",
+   "username": "ada@gmail.com",
+   "calendars": [
+    {
+     "name": "Personal",
+     "color": "#9ece6a"
+    },
+    {
+     "name": "Holidays",
+     "color": "#e0af68",
+     "readOnly": true
+    }
+   ]
+  }
+ ],
+ "events": [
+  {
+   "title": "Sprint 14",
+   "calendar": 0,
+   "day": 0,
+   "allDay": true
+  },
+  {
+   "title": "Standup",
+   "calendar": 0,
+   "day": 0,
+   "time": "09:30",
+   "minutes": 15,
+   "recurring": true,
+   "meetingUrl": "https://meet.google.com/abc-defg-hij",
+   "alarms": [
+    300
+   ]
+  },
+  {
+   "title": "Design review",
+   "calendar": 0,
+   "day": 0,
+   "time": "13:47",
+   "minutes": 45,
+   "location": "Room 3",
+   "meetingUrl": "https://meet.google.com/xyz-abcd-efg",
+   "alarms": [
+    600
+   ],
+   "description": "Walk through the new onboarding screens and agree on the copy."
+  },
+  {
+   "title": "Dentist",
+   "calendar": 1,
+   "day": 0,
+   "time": "17:30",
+   "minutes": 30,
+   "location": "12 rue de la Paix",
+   "alarms": [
+    3600
+   ]
+  },
+  {
+   "title": "Train to Lyon",
+   "calendar": 1,
+   "day": 1,
+   "time": "08:45",
+   "minutes": 120,
+   "location": "Gare de Lyon"
+  },
+  {
+   "title": "Lunch with Sam",
+   "calendar": 1,
+   "day": 1,
+   "time": "12:30",
+   "minutes": 60
+  },
+  {
+   "title": "Ada's birthday",
+   "calendar": 1,
+   "day": 2,
+   "allDay": true,
+   "recurring": true
+  },
+  {
+   "title": "1:1 with Alex",
+   "calendar": 0,
+   "day": 3,
+   "time": "10:00",
+   "minutes": 30,
+   "meetingUrl": "https://teams.microsoft.com/l/meetup-join/demo",
+   "recurring": true
+  },
+  {
+   "title": "Armistice Day",
+   "calendar": 2,
+   "day": 4,
+   "allDay": true
+  }
+ ]
+}

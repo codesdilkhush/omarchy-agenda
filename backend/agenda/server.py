@@ -284,6 +284,8 @@ class Server:
         self.maybe_recap(now, events)
 
     def send_due(self, now_ms, events):
+        if self.engine.demo is not None:
+            return  # demo events never notify
         settings = self.engine.settings
         with self.state_lock:
             due = reminders.due(events, now_ms, self.fired, settings, self.snoozes)
@@ -299,6 +301,8 @@ class Server:
             self.notify_reminder(r, now_ms)
 
     def maybe_recap(self, now, events):
+        if self.engine.demo is not None:
+            return
         if not self.recap_pending:
             return
         if not self.synced_once and now - self.started_at < 60 and self.engine.accounts:

@@ -67,6 +67,27 @@ def _code(exc):
     return getattr(exc, "code", None) or type(exc).__name__
 
 
+DEMO_FILE = "demo.json"
+
+
+def load_demo():
+    """Screenshots and docs without anyone's real calendar.
+
+    A demo.json in the state directory replaces every account with the fake
+    ones it lists. Nothing is fetched, nothing is written to a server and no
+    reminder fires. Format:
+      {"accounts": [{"label", "calendars": [{"name", "color", "readOnly"}]}],
+       "events": [{"title", "calendar": 0, "day": 0, "time": "09:30",
+                   "minutes": 30, "allDay": false, "location", "meetingUrl",
+                   "recurring": false, "alarms": [600]}]}
+    day is relative to today; calendar indexes all the demo calendars.
+    """
+    data = storage.read_json(storage.state_path(DEMO_FILE), None)
+    if not isinstance(data, dict) or not isinstance(data.get("accounts"), list):
+        return None
+    return data
+
+
 class Engine:
     def __init__(self):
         self.lock = threading.RLock()
@@ -78,6 +99,7 @@ class Engine:
             self.cache = {"version": CACHE_VERSION, "calendars": {}, "syncedAt": 0, "errors": {}}
         self.pending = {}
         self.syncing = False
+        self.demo = load_demo()
 
     # ------------------------------------------------------------ files
 
@@ -133,7 +155,25 @@ class Engine:
 
     # ------------------------------------------------------------ accounts
 
+    def _demo_calendars(self):
+        out = []
+        for a, acc in enumerate(self.demo.get("accounts", [])):
+            for c, cal in enumerate(acc.get("calendars", [])):
+                out.append(("demo%d" % a, "cal%d" % c, acc, cal))
+        return out
+
     def public_accounts(self):
+        if self.demo is not None:
+            accounts = {}
+            for aid, cid, acc, cal in self._demo_calendars():
+                entry = accounts.setdefault(aid, {
+                    "id": aid, "provider": "demo", "kind": str(acc.get("kind", "caldav")),
+                    "label": _clean(acc.get("label"), 80), "username": _clean(acc.get("username"), 120),
+                    "server": "", "error": "", "calendars": []})
+                entry["calendars"].append({"id": cid, "name": _clean(cal.get("name"), 120),
+                                           "color": caldav.normalize_color(str(cal.get("color", ""))),
+                                           "enabled": True, "readOnly": bool(cal.get("readOnly"))})
+            return list(accounts.values())
         errors = self.cache.get("errors", {})
         out = []
         for acc in self.accounts:
@@ -290,6 +330,9 @@ class Engine:
     def sync(self, force=False, only=None):
         """Refresh every enabled calendar. `only` = set of cache keys to
         refetch even if the provider says nothing changed."""
+        if self.demo is not None:
+            self.cache["syncedAt"] = int(time.time() * 1000)
+            return {}
         with self.lock:
             accounts = [dict(a, calendars=[dict(c) for c in a["calendars"]]) for a in self.accounts]
             old = dict(self.cache.get("calendars", {}))
@@ -372,8 +415,41 @@ class Engine:
                 break
         return out
 
+    def _demo_events(self):
+        cals = self._demo_calendars()
+        today = dt.datetime.now(self.zone).date()
+        out = []
+        for i, ev in enumerate(self.demo.get("events", [])):
+            if not isinstance(ev, dict) or not cals:
+                continue
+            aid, cid, acc, cal = cals[int(ev.get("calendar", 0)) % len(cals)]
+            day = today + dt.timedelta(days=int(ev.get("day", 0)))
+            if ev.get("allDay"):
+                start = dt.datetime(day.year, day.month, day.day, tzinfo=self.zone)
+                end = start + dt.timedelta(days=max(1, int(ev.get("days", 1))))
+            else:
+                hh, mm = (int(x) for x in str(ev.get("time", "09:00")).split(":"))
+                start = dt.datetime(day.year, day.month, day.day, hh, mm, tzinfo=self.zone)
+                end = start + dt.timedelta(minutes=int(ev.get("minutes", 60)))
+            out.append({
+                "key": "demo%d" % i, "accountId": aid, "calendarId": cid, "uid": "demo%d" % i,
+                "href": "", "etag": "", "title": _clean(ev.get("title"), 300),
+                "location": _clean(ev.get("location"), 300), "description": _clean(ev.get("description"), 2000),
+                "start": int(start.timestamp() * 1000), "end": int(end.timestamp() * 1000),
+                "allDay": bool(ev.get("allDay")), "recurring": bool(ev.get("recurring")),
+                "recurrenceId": "x" if ev.get("recurring") else "",
+                "meetingUrl": ics.safe_meeting_url(str(ev.get("meetingUrl", ""))),
+                "alarms": [int(x) for x in ev.get("alarms", []) if isinstance(x, int)], "alarmsAt": [],
+                "calendarName": _clean(cal.get("name"), 120), "accountLabel": _clean(acc.get("label"), 80),
+                "color": caldav.normalize_color(str(cal.get("color", ""))), "readOnly": bool(cal.get("readOnly")),
+            })
+        out.sort(key=lambda e: (e["start"], e["title"]))
+        return out
+
     def events(self):
         """Every cached occurrence, decorated with its calendar's look."""
+        if self.demo is not None:
+            return self._demo_events()
         with self.lock:
             cal_info = {}
             for acc in self.accounts:
@@ -404,6 +480,8 @@ class Engine:
     # ------------------------------------------------------------ writes
 
     def _writable(self, account_id, calendar_id):
+        if self.demo is not None:
+            raise EngineError("read_only")
         acc = self._account(account_id)
         for cal in acc["calendars"]:
             if cal["id"] == calendar_id:

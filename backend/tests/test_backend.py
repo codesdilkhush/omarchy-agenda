@@ -358,6 +358,28 @@ class ReminderTests(unittest.TestCase):
         self.assertEqual(e - s, 25 * 3600_000)
 
 
+class DemoTests(IsolatedDirs):
+    def test_demo_replaces_accounts_and_never_writes(self):
+        storage.write_json(storage.state_path("demo.json"), {
+            "accounts": [{"label": "Work", "calendars": [{"name": "Team", "color": "#336699"}]}],
+            "events": [{"title": "Standup", "day": 1, "time": "09:30", "minutes": 15, "alarms": [600]}]})
+        eng = engine.Engine()
+        self.add_real = False
+        self.assertEqual([a["label"] for a in eng.public_accounts()], ["Work"])
+        ev = eng.events()[0]
+        self.assertEqual((ev["title"], ev["end"] - ev["start"], ev["color"]), ("Standup", 15 * 60000, "#336699"))
+        self.assertEqual(eng.sync(), {})
+        self.assertEqual(FakeConn.seen, [], "demo mode never touches the network")
+        with self.assertRaises(engine.EngineError):
+            eng.delete_event(ev["key"], "series")
+        srv = server.Server(out=io.StringIO())
+        sent = []
+        srv.notify = lambda *a, **k: sent.append(a)
+        srv.send_due(ev["start"] - 600000, srv.engine.events())
+        srv.maybe_recap(time.time(), [])
+        self.assertEqual(sent, [])
+
+
 class ServerTests(IsolatedDirs):
     def make(self):
         out = io.StringIO()

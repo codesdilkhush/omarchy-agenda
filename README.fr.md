@@ -2,6 +2,8 @@
 
 *[Read in English](README.md)*
 
+<p align="center"><img src="docs/screenshots/agenda.fr.png" width="420" alt="Le popup Agenda sous la barre d'Omarchy"></p>
+
 Tes calendriers dans la barre d'Omarchy, sous forme de plugin séparé : l'horloge
 d'origine n'est pas modifiée.
 
@@ -29,6 +31,18 @@ d'origine n'est pas modifiée.
 | Google | ✅ | lecture et écriture (ton propre client OAuth, environ 5 minutes une seule fois) |
 | Liens `.ics` / `webcal` (adresse secrète Google ou Proton, jours fériés…) | ✅ | lecture seule |
 | Microsoft / Outlook | prévu | lecture et écriture (ta propre app Azure) |
+
+## Captures
+
+| Détails d'un événement | Nouvel événement |
+|---|---|
+| <img src="docs/screenshots/event-details.fr.png" width="380" alt="Un événement déplié, avec Rejoindre et Supprimer"> | <img src="docs/screenshots/new-event.png" width="380" alt="Le formulaire de nouvel événement"> |
+
+| Comptes | Réglages |
+|---|---|
+| <img src="docs/screenshots/accounts.png" width="380" alt="Les comptes connectés et leurs calendriers"> | <img src="docs/screenshots/settings.png" width="380" alt="Réglages des rappels, du récap et de la synchro"> |
+
+*Toutes les captures utilisent des événements inventés (voir « Mode démo » plus bas).*
 
 ## Installation
 
@@ -154,6 +168,21 @@ trousseau du système. Les détails sont dans [docs/security.fr.md](docs/securit
 - **Pas de notification** : lance **Réglages › Envoyer une notification de
   test**, et vérifie que Ne pas déranger est désactivé.
 
+## Limites
+
+- Les comptes Microsoft / Outlook ne sont pas encore pris en charge. Un
+  calendrier Outlook publié fonctionne en lecture seule, comme lien `.ics`.
+- Tant que ton app OAuth Google est en mode *Test*, Google déconnecte Agenda
+  tous les 7 jours, et tu cliques sur **Comptes › Se reconnecter**.
+- Les événements récurrents sont dépliés localement. Les règles quotidiennes,
+  hebdomadaires, mensuelles et annuelles sont gérées, avec les exceptions et
+  les occurrences déplacées. Les parties rares `BYWEEKNO`, `BYYEARDAY` et
+  `BYHOUR` sont ignorées.
+- L'interface est en anglais et en français. Les autres langues d'Omarchy
+  retombent sur l'anglais ; les traductions sont bienvenues
+  (`i18n/<code>.json`).
+- On peut ajouter et supprimer des événements, pas encore les modifier.
+
 ## Développement
 
 ```bash
@@ -161,6 +190,15 @@ python3 -m unittest discover -s backend/tests   # analyseur, récurrences, CalDA
 node --test tests/                               # ajout rapide, regroupement, libellé de la barre
 omarchy plugin validate .
 ```
+
+### Mode démo
+
+Pour faire des captures sans le vrai agenda de personne, copie
+[docs/demo.json](docs/demo.json) dans `~/.local/state/dadoux01.agenda/demo.json`
+puis lance `omarchy restart shell`. Le service affiche alors ces comptes et
+événements inventés, avec des horaires relatifs à aujourd'hui. Il ne contacte
+aucun serveur, n'écrit rien et n'envoie aucun rappel. Supprime le fichier et
+redémarre le shell pour retrouver tes calendriers.
 
 ## Licence
 
