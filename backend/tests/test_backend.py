@@ -382,7 +382,9 @@ class ServerTests(IsolatedDirs):
             srv.notify("<b>$(rm -rf ~)</b>\x07", '<a href="https://evil.example">x</a> &lt;b&gt; & b', [], None)
         args = calls[0]
         self.assertEqual(args[-3], "--")
-        self.assertEqual(args[-2], server.GLYPH + "  <b>$(rm -rf ~)</b>", "summary is plain text: shown as typed")
+        self.assertEqual(args[-2], "<b>$(rm -rf ~)</b>", "summary is plain text: shown as typed")
+        self.assertEqual(args[args.index("-i") + 1], server.ICON)
+        self.assertTrue(os.path.isfile(server.ICON))
         self.assertFalse(any(ch in args[-1] for ch in "<>&"), "body must carry no markup characters")
         self.assertIn("evil.example", args[-1])
         self.assertNotIn("-A", args)

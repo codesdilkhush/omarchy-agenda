@@ -27,10 +27,11 @@ TICK_SECONDS = 15
 RESUME_GAP_SECONDS = 90
 MAX_LIVE_NOTIFICATIONS = 12
 MAX_LINE = 256 * 1024
-# Omarchy's toasts treat a summary that opens with one glyph and two spaces
-# as carrying its own mark ("\U000F009A  Silenced"), drawn in the theme's
-# colour instead of the sender's initial. Nerd Font md-calendar.
-GLYPH = "\U000F00ED"
+# The plugin's own icon, by absolute path: no icon theme has to know about
+# it, and both Omarchy's toasts and notification history pick it up instead
+# of drawing the app's initial.
+ICON = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     "..", "..", "icons", "agenda.svg"))
 
 DEFAULT_STRINGS = {
     "app": "Agenda",
@@ -404,6 +405,8 @@ class Server:
         if not tool:
             return
         args = [tool, "-a", self.strings["app"], "-u", urgency]
+        if os.path.isfile(ICON):
+            args += ["-i", ICON]
         with self.live_lock:
             can_wait = bool(actions) and on_action is not None and \
                 self.live_notifications < MAX_LIVE_NOTIFICATIONS
@@ -412,7 +415,7 @@ class Server:
         if can_wait:
             for name, label in actions:
                 args += ["-A", name + "=" + label]
-        args += ["--", GLYPH + "  " + plain_summary(title)[:300], neutral_body(body)[:1500]]
+        args += ["--", plain_summary(title)[:300], neutral_body(body)[:1500]]
 
         def run():
             try:
