@@ -58,6 +58,25 @@ Le plugin a besoin de `python3`, déjà fourni par Omarchy. `secret-tool`
 Rien d'autre n'est installé : le service n'utilise que la bibliothèque
 standard de Python.
 
+## Désinstallation
+
+1. Facultatif, pour supprimer aussi les mots de passe enregistrés : ouvre
+   **Comptes** et retire chaque compte. Ça supprime son entrée du trousseau.
+2. Retire le plugin :
+
+   ```bash
+   omarchy plugin remove dadoux01.agenda
+   ```
+
+3. Facultatif, pour supprimer ses réglages, son cache et tout secret restant :
+
+   ```bash
+   rm -rf ~/.config/dadoux01.agenda ~/.local/state/dadoux01.agenda
+   secret-tool clear service dadoux01.agenda
+   ```
+
+Rien n'est jamais supprimé de tes calendriers sur les serveurs.
+
 ## Connecter un calendrier
 
 Clique sur l'icône du calendrier dans la barre, puis sur **Connecter un

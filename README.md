@@ -53,6 +53,25 @@ The plugin needs `python3`, which Omarchy ships. `secret-tool` (libsecret)
 and `notify-send` (libnotify) are optional but recommended. Nothing else is
 installed: the helper uses only the Python standard library.
 
+## Uninstall
+
+1. Optional, to also delete the saved passwords: open **Accounts** and
+   remove each account. This deletes its keyring entry.
+2. Remove the plugin:
+
+   ```bash
+   omarchy plugin remove dadoux01.agenda
+   ```
+
+3. Optional, to delete its settings, cache and any secret left behind:
+
+   ```bash
+   rm -rf ~/.config/dadoux01.agenda ~/.local/state/dadoux01.agenda
+   secret-tool clear service dadoux01.agenda
+   ```
+
+Nothing is ever deleted from your calendars on the servers.
+
 ## Connect a calendar
 
 Click the calendar icon in the bar, then **Connect a calendar**:
