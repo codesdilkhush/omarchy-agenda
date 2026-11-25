@@ -191,6 +191,8 @@ node --test tests/                               # ajout rapide, regroupement, l
 omarchy plugin validate .
 ```
 
+Avant une version, passe les [tests manuels](docs/manual-tests.fr.md).
+
 ### Mode démo
 
 Pour faire des captures sans le vrai agenda de personne, copie

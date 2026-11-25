@@ -179,6 +179,8 @@ node --test tests/                               # quick add, grouping, bar labe
 omarchy plugin validate .
 ```
 
+Before a release, run the [manual tests](docs/manual-tests.md).
+
 ### Demo mode
 
 For screenshots without anyone's real calendar, copy
