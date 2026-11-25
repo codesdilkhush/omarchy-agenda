@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "dadoux01.agenda",
+  "name": "Agenda",
+  "version": "0.1.0",
+  "author": "dadoux01",
+  "description": "Your calendars in the bar: agenda, add and delete events, synced reminders and a daily recap. iCloud and any CalDAV server.",
+  "homepage": "https://github.com/dadoux01/omarchy-agenda",
+  "license": "MIT",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Agenda",
+    "description": "What's on now or next; click for the agenda",
+    "category": "Productivity",
+    "allowMultiple": false,
+    "defaultSection": "centerEnd",
+    "defaults": {
+      "showNext": true,
+      "maxTitle": 22
+    },
+    "schema": [
+      {
+        "key": "showNext",
+        "type": "boolean",
+        "label": "Show the next event in the bar",
+        "defaultValue": true,
+        "description": "Off leaves only the calendar icon; the agenda is one click away either way."
+      },
+      {
+        "key": "maxTitle",
+        "type": "integer",
+        "label": "Longest title in the bar",
+        "min": 6,
+        "max": 60,
+        "step": 2,
+        "defaultValue": 22,
+        "description": "Characters. Longer titles are cut with an ellipsis."
+      }
+    ]
+  }
+}

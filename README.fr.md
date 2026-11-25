@@ -1,0 +1,160 @@
+# Agenda pour Omarchy
+
+*[Read in English](README.md)*
+
+Tes calendriers dans la barre d'Omarchy, sous forme de plugin séparé : l'horloge
+d'origine n'est pas modifiée.
+
+- **Dans la barre** : ce qui se passe maintenant ou juste après (« Standup dans
+  12 min », « 14:30 Dentiste »). S'il n'y a rien de prévu, seule l'icône du
+  calendrier s'affiche.
+- **Popup agenda** : aujourd'hui et les jours suivants, avec une couleur par
+  calendrier et un bouton Rejoindre pour Meet, Zoom, Teams et les autres
+  liens de visio.
+- **Ajouter et supprimer des événements** : ajout rapide (« Dentiste demain
+  14h-15h ») ou formulaire complet. Pour un événement récurrent, le plugin
+  demande s'il faut supprimer cet événement seulement ou toute la série.
+- **Rappels synchronisés** : les rappels réglés sur chaque événement (sur le
+  téléphone, sur le web ou ici) deviennent des notifications sur le bureau.
+  Elles ont des boutons Rejoindre, Rappeler dans 5 min et Ouvrir, et aucun
+  rappel n'est envoyé deux fois.
+- **Récap du jour** à l'ouverture de session, et au réveil de l'ordinateur
+  si on a changé de jour.
+- Suit la langue (français et anglais inclus) et le thème d'Omarchy.
+
+| Fournisseur | État | Accès |
+|---|---|---|
+| Apple iCloud | ✅ | lecture et écriture |
+| Tout serveur CalDAV (Fastmail, Nextcloud, Zoho, Yahoo, mailbox.org, Radicale…) | ✅ | lecture et écriture |
+| Google | prévu | lecture et écriture (ton propre client OAuth) |
+| Microsoft / Outlook | prévu | lecture et écriture (ta propre app Azure) |
+| Liens `.ics` (Proton, jours fériés…) | prévu | lecture seule |
+
+## Installation
+
+```bash
+omarchy plugin add https://github.com/dadoux01/omarchy-agenda --enable
+```
+
+Tu peux aussi placer ce dossier dans `~/.config/omarchy/plugins/dadoux01.agenda/`
+puis lancer `omarchy plugin enable dadoux01.agenda --section centerEnd`.
+
+Le plugin a besoin de `python3`, déjà fourni par Omarchy. `secret-tool`
+(libsecret) et `notify-send` (libnotify) sont facultatifs mais recommandés.
+Rien d'autre n'est installé : le service n'utilise que la bibliothèque
+standard de Python.
+
+## Connecter un calendrier
+
+Clique sur l'icône du calendrier dans la barre, puis sur **Connecter un
+calendrier** :
+
+- **iCloud** : voir [docs/icloud.fr.md](docs/icloud.fr.md). Il faut un *mot de
+  passe pour app*, pas celui de l'identifiant Apple.
+- **Autre CalDAV** : voir [docs/caldav.fr.md](docs/caldav.fr.md).
+
+Choisis les calendriers à afficher, et c'est terminé. Tu pourras ensuite
+ajouter, masquer ou retirer des comptes dans **Comptes** (l'icône des
+personnes).
+
+## Utilisation
+
+| Action | Souris | Clavier (popup ouvert) |
+|---|---|---|
+| Ouvrir l'agenda | clic gauche | `omarchy-shell dadoux01.agenda toggle` |
+| Nouvel événement | clic droit, ou `+` | `n` |
+| Ajout rapide | taper dans le champ en haut | `/` |
+| Synchroniser | clic du milieu, ou l'icône de synchro | `s` |
+| Parcourir les événements | | `↑` `↓` (ou `j` `k`) |
+| Voir les détails | cliquer sur l'événement | `Entrée` |
+| Rejoindre la visio | **Rejoindre** | `j` sur l'événement sélectionné |
+| Supprimer | **Supprimer** dans les détails | `Suppr` ou `x` |
+| Comptes / Réglages | icônes en haut | `a` / `,` |
+| Retour / fermer | | `Échap` |
+
+Pour un raccourci clavier, ajoute ceci dans `~/.config/hypr/bindings.lua` :
+
+```lua
+o.bind("SUPER + C", "Agenda", "omarchy-shell dadoux01.agenda toggle")
+```
+
+La cible IPC accepte aussi `open`, `add` et `sync`.
+
+### Ajout rapide
+
+L'analyseur comprend le français et l'anglais. Il repère un jour et une
+heure, et tout le reste devient le titre.
+
+| Tu tapes | Tu obtiens |
+|---|---|
+| `Dentiste demain 14h-15h` | demain 14:00–15:00 |
+| `Call vendredi à 9h` | vendredi prochain 09:00–10:00 |
+| `Réunion 28/11 10:30` | 28 novembre 10:30–11:30 |
+| `Vacances 24/12` | 24 décembre, toute la journée |
+| `Lunch tomorrow 1pm-2pm` | demain 13:00–14:00 |
+
+Si le texte ne contient ni date ni heure reconnaissable, le formulaire
+s'ouvre avec ton texte comme titre.
+
+## Réglages
+
+Sous l'icône engrenage :
+
+- **Rappels du calendrier** : notifie les rappels propres à chaque événement.
+- **Notifier au début d'un événement** : avec un bouton Rejoindre si
+  l'événement a un lien de visio.
+- **Rappel en plus sur cet ordinateur**, en plus des rappels de l'événement.
+- **Notifications discrètes** : masque les titres et les lieux, pratique sur
+  un écran partagé.
+- **Récap du jour**, activé ou désactivé.
+- **Rappel par défaut des nouveaux événements**, **fréquence de synchro** et
+  **jours affichés**.
+
+Dans les réglages du widget de la barre, tu peux choisir d'afficher ou non
+le prochain événement, et la longueur maximale d'un titre.
+
+Un rappel manqué pendant que l'ordinateur était en veille ou éteint est
+quand même envoyé s'il date de moins de 15 minutes, avec la mention *en
+retard*. Les plus anciens sont ignorés, pour ne pas t'inonder au réveil.
+
+## Confidentialité et sécurité
+
+Tes données circulent uniquement entre cet ordinateur et les serveurs de
+calendrier que tu connectes. Il n'y a aucun serveur intermédiaire, aucune
+télémétrie et aucun paquet tiers. Les mots de passe sont rangés dans le
+trousseau du système. Les détails sont dans [docs/security.fr.md](docs/security.fr.md).
+
+## Fichiers
+
+| Chemin | Contenu |
+|---|---|
+| `~/.config/dadoux01.agenda/accounts.json` | comptes et calendriers (sans mot de passe) |
+| `~/.config/dadoux01.agenda/settings.json` | tes réglages |
+| `~/.local/state/dadoux01.agenda/cache.json` | cache des événements, pour le hors-ligne |
+| `~/.local/state/dadoux01.agenda/fired.json` | rappels déjà envoyés |
+| trousseau système, `service=dadoux01.agenda` | mots de passe |
+
+## Dépannage
+
+- **« Identifiant ou mot de passe incorrect »** sur iCloud : utilise un mot
+  de passe pour app, et active la double authentification sur l'identifiant
+  Apple.
+- **Le widget n'affiche rien** : lance `omarchy plugin list` et vérifie que
+  `dadoux01.agenda` est activé.
+- **« Le service Agenda ne tourne pas »** : vérifie que `python3` fonctionne.
+  Les erreurs du service sont dans le journal du shell :
+  `grep agenda /run/user/$UID/quickshell/by-pid/*/log.log`.
+- **Pas de notification** : lance **Réglages › Envoyer une notification de
+  test**, et vérifie que Ne pas déranger est désactivé.
+
+## Développement
+
+```bash
+python3 -m unittest discover -s backend/tests   # analyseur, récurrences, CalDAV, rappels
+node --test tests/                               # ajout rapide, regroupement, libellé de la barre
+omarchy plugin validate .
+```
+
+## Licence
+
+MIT
