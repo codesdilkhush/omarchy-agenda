@@ -26,8 +26,10 @@ the middle, and no third party that could lose or misuse a key.
 
 ## 3. Set up the consent screen
 
-1. Menu ☰ › **Google Auth Platform** (also called **OAuth consent
-   screen**), then **Get started**.
+1. Menu ☰ › the **›** arrow next to **APIs & Services** › **OAuth consent
+   screen**. It leads to **Google Auth Platform**. (Or type
+   `Google Auth Platform` in the search bar at the top.) Click **Get
+   started**.
 2. **App name**: `Omarchy Agenda`. **User support email**: your address.
    Click **Next**.
 3. **Audience**: choose **External**, then **Next**.

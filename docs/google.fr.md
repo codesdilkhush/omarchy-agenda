@@ -27,8 +27,10 @@ intermédiaire, et aucun tiers qui pourrait perdre ou détourner une clé.
 
 ## 3. Configurer l'écran de consentement
 
-1. Menu ☰ › **Google Auth Platform** (aussi appelé **Écran de consentement
-   OAuth**), puis **Commencer**.
+1. Menu ☰ › flèche **›** à côté de **API et services** › **Écran de
+   consentement OAuth**. La page renvoie vers **Google Auth Platform**.
+   (Autre chemin : tape `Google Auth Platform` dans la barre de recherche en
+   haut.) Clique sur **Commencer**.
 2. **Nom de l'application** : `Omarchy Agenda`. **Adresse e-mail
    d'assistance** : ton adresse. Clique sur **Suivant**.
 3. **Audience** : choisis **Externe**, puis **Suivant**.
