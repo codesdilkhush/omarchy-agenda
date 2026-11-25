@@ -131,9 +131,9 @@ are in [docs/security.md](docs/security.md).
 
 ## Troubleshooting
 
-- **Google: "signed this account out" every week**: your OAuth app is in
-  *Testing* mode. Publish it ([docs/google.md](docs/google.md), step 3), or
-  use **Accounts › Sign in again**.
+- **Google: "signed this account out" every week**: expected while your
+  OAuth app is in *Testing* mode. Click **Accounts › Sign in again**
+  ([docs/google.md](docs/google.md), step 3).
 - **"Wrong username or password"** on iCloud: use an app-specific password,
   and turn on two-factor authentication on the Apple ID.
 - **The widget shows nothing**: run `omarchy plugin list` and check that

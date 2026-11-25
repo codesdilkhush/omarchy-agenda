@@ -198,7 +198,7 @@
   "error.google_denied": "Google a refusé la connexion.",
   "error.google_token": "Google a refusé la connexion (%1).",
   "error.google_api_disabled": "L'API Google Calendar n'est pas activée dans ton projet Cloud (docs/google.fr.md, étape 2).",
-  "error.reauth_required": "Google a déconnecté ce compte. Si ton app OAuth est en mode « Test », ça arrive tous les 7 jours : publie-la (docs/google.fr.md).",
+  "error.reauth_required": "Google a déconnecté ce compte. Si ton app OAuth est en mode « Test », ça arrive tous les 7 jours. Clique sur « Se reconnecter ».",
   "error.bad_feed": "Ce lien ne mène pas à un fichier de calendrier (.ics).",
   "error.bad_response": "Le serveur a envoyé une réponse illisible.",
   "error.unknown_provider": "Ce type de compte n'est pas pris en charge."

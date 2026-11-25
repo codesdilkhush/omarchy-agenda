@@ -35,18 +35,19 @@ the middle, and no third party that could lose or misuse a key.
 3. **Audience**: choose **External**, then **Next**.
 4. **Contact information**: your address. Click **Next**, accept the policy,
    and click **Create**.
-5. Open **Audience**. You now have a choice:
-   - **Publish app** (recommended): click **Publish app**, then **Confirm**.
-     Google keeps you signed in until you revoke access. During sign-in,
-     Google shows a *"Google hasn't verified this app"* warning, because
-     the app is yours and was never sent to Google for review. That is
-     expected.
-   - **Stay in Testing**: under **Test users**, click **Add users** and add
-     your own address. Google then signs Agenda out **every 7 days**, and
-     you click **Sign in again** under **Accounts** each time.
-6. Optional, but it makes the consent screen clearer: open **Data Access ›
-   Add or remove scopes**, tick `.../auth/calendar.events` and
-   `.../auth/calendar.calendarlist.readonly`, then **Update › Save**.
+5. Open **Audience** › **Test users** › **Add users**, add your own Gmail
+   address and save. Do not declare any scope under **Data Access**: Agenda
+   asks for its permissions when you sign in.
+
+   The app stays in **Testing**. No URL or website is needed, but Google
+   signs Agenda out **every 7 days**. You then click **Sign in again** under
+   **Accounts** (about 10 seconds).
+
+   > **Publish app** would remove the 7-day limit, but Google then requires
+   > a home page and a privacy policy on a domain you own, which means a
+   > hosted website. If you have one, publish the app: Google will show the
+   > *"Google hasn't verified this app"* warning once, which is expected for
+   > your own app.
 
 ## 4. Create the OAuth client
 
@@ -108,7 +109,7 @@ in Agenda.
 | This client is of type "Web application" | Create a new client of type **Desktop app**. |
 | Agenda needs both calendar permissions | Sign in again and leave both boxes ticked. |
 | The Google Calendar API is not enabled | Step 2. Wait a minute after enabling it. |
-| Google signed this account out | **Accounts › Sign in again**. If it happens every week, publish the app (step 3.5). |
+| Google signed this account out | **Accounts › Sign in again**. In Testing mode this is expected every 7 days (step 3.5). |
 | `Error 403: access_denied` in the browser | The app is in Testing and your address is not a test user (step 3.5). |
 | `Error 400: redirect_uri_mismatch` | The client is not of type **Desktop app**. |
 | Google did not grant offline access | Revoke Agenda at myaccount.google.com/permissions, then sign in again. |

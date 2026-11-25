@@ -140,9 +140,9 @@ trousseau du système. Les détails sont dans [docs/security.fr.md](docs/securit
 
 ## Dépannage
 
-- **Google : « a déconnecté ce compte » chaque semaine** : ton app OAuth est
-  en mode *Test*. Publie-la ([docs/google.fr.md](docs/google.fr.md), étape 3),
-  ou utilise **Comptes › Se reconnecter**.
+- **Google : « a déconnecté ce compte » chaque semaine** : c'est normal tant
+  que ton app OAuth est en mode *Test*. Clique sur **Comptes › Se
+  reconnecter** ([docs/google.fr.md](docs/google.fr.md), étape 3).
 - **« Identifiant ou mot de passe incorrect »** sur iCloud : utilise un mot
   de passe pour app, et active la double authentification sur l'identifiant
   Apple.

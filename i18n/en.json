@@ -198,7 +198,7 @@
   "error.google_denied": "Google refused the sign-in.",
   "error.google_token": "Google refused the sign-in (%1).",
   "error.google_api_disabled": "The Google Calendar API is not enabled in your Cloud project (docs/google.md, step 2).",
-  "error.reauth_required": "Google signed this account out. If your OAuth app is in “Testing” mode, this happens every 7 days: publish it (docs/google.md).",
+  "error.reauth_required": "Google signed this account out. If your OAuth app is in “Testing” mode, this happens every 7 days. Click “Sign in again”.",
   "error.bad_feed": "That link does not lead to a calendar (.ics) file.",
   "error.bad_response": "The server sent an answer that could not be read.",
   "error.unknown_provider": "This kind of account is not supported."

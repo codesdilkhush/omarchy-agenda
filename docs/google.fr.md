@@ -36,20 +36,21 @@ intermédiaire, et aucun tiers qui pourrait perdre ou détourner une clé.
 3. **Audience** : choisis **Externe**, puis **Suivant**.
 4. **Coordonnées** : ton adresse. Clique sur **Suivant**, accepte le
    règlement, puis clique sur **Créer**.
-5. Ouvre **Audience**. Tu as alors le choix :
-   - **Publier l'application** (recommandé) : clique sur **Publier
-     l'application**, puis **Confirmer**. Google te garde connecté jusqu'à
-     ce que tu révoques l'accès. Pendant la connexion, Google affiche un
-     avertissement *« Google n'a pas validé cette application »*, car l'app
-     est la tienne et n'a jamais été soumise à Google. C'est normal.
-   - **Rester en Test** : sous **Utilisateurs test**, clique sur **Add
-     users** et ajoute ta propre adresse. Google déconnecte alors Agenda
-     **tous les 7 jours**, et tu dois cliquer sur **Se reconnecter** dans
-     **Comptes** à chaque fois.
-6. Facultatif, mais ça rend l'écran de consentement plus clair : ouvre
-   **Accès aux données › Ajouter ou supprimer des niveaux d'accès**, coche
-   `.../auth/calendar.events` et `.../auth/calendar.calendarlist.readonly`,
-   puis **Mettre à jour › Enregistrer**.
+5. Ouvre **Audience** › **Utilisateurs test** › **Add users**, ajoute ta
+   propre adresse Gmail et enregistre. Ne déclare aucun niveau d'accès dans
+   **Accès aux données** : Agenda demande ses autorisations au moment de la
+   connexion.
+
+   L'app reste en mode **Test**. Aucune URL ni aucun site n'est demandé, mais
+   Google déconnecte Agenda **tous les 7 jours**. Il suffit alors de cliquer
+   sur **Se reconnecter** dans **Comptes** (environ 10 secondes).
+
+   > **Publier l'application** supprimerait cette limite de 7 jours, mais
+   > Google exige alors une page d'accueil et une politique de
+   > confidentialité sur un domaine à toi, donc un site hébergé. Si tu en as
+   > un, publie l'app : Google affichera une fois l'avertissement
+   > *« Google n'a pas validé cette application »*, ce qui est normal pour
+   > ta propre app.
 
 ## 4. Créer le client OAuth
 
@@ -116,7 +117,7 @@ Pour révoquer l'accès à tout moment, va sur
 | Ce client est de type « Application Web » | Crée un nouveau client de type **Application de bureau**. |
 | Agenda a besoin des deux autorisations | Reconnecte-toi en laissant les deux cases cochées. |
 | L'API Google Calendar n'est pas activée | Étape 2. Attends une minute après l'activation. |
-| Google a déconnecté ce compte | **Comptes › Se reconnecter**. Si ça revient chaque semaine, publie l'app (étape 3.5). |
+| Google a déconnecté ce compte | **Comptes › Se reconnecter**. En mode Test, c'est normal tous les 7 jours (étape 3.5). |
 | `Erreur 403 : access_denied` dans le navigateur | L'app est en Test et ton adresse n'est pas utilisateur test (étape 3.5). |
 | `Erreur 400 : redirect_uri_mismatch` | Le client n'est pas de type **Application de bureau**. |
 | Google n'a pas accordé l'accès hors ligne | Révoque Agenda sur myaccount.google.com/permissions, puis reconnecte-toi. |
