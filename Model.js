@@ -305,3 +305,22 @@ function neutralize(text) {
     .replace(/&/g, "＆")
     .replace(/[\u0000-\u001f\u007f]/g, " ")
 }
+
+// "%1 in %2 min" with ["Standup", 6] -> "Standup in 6 min".
+function fill(template, args) {
+  return String(template).replace(/%(\d)/g, function(m, n) {
+    var v = args[Number(n) - 1]
+    return v === undefined ? m : String(v)
+  })
+}
+
+// The bar label, never longer than `max` characters: the title gives way so
+// the time part ("in 6 min", "14:30") always stays whole.
+function fitLabel(template, args, titleIndex, max) {
+  var marker = "\u0001"
+  var a = args.slice()
+  a[titleIndex] = marker
+  var base = fill(template, a)
+  var budget = Math.max(4, max - (base.length - 1))
+  return base.replace(marker, truncate(args[titleIndex], budget))
+}

@@ -23,7 +23,7 @@
     "defaultSection": "centerEnd",
     "defaults": {
       "showNext": true,
-      "maxTitle": 22
+      "maxLabel": 24
     },
     "schema": [
       {
@@ -34,14 +34,14 @@
         "description": "Off leaves only the calendar icon; the agenda is one click away either way."
       },
       {
-        "key": "maxTitle",
+        "key": "maxLabel",
         "type": "integer",
-        "label": "Longest title in the bar",
-        "min": 6,
-        "max": 60,
+        "label": "Longest text in the bar",
+        "min": 10,
+        "max": 80,
         "step": 2,
-        "defaultValue": 22,
-        "description": "Characters. Longer titles are cut with an ellipsis."
+        "defaultValue": 24,
+        "description": "Characters, time included. A longer title is cut with an ellipsis so the time stays whole; hover the widget to read it in full."
       }
     ]
   }

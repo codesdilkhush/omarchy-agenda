@@ -72,26 +72,31 @@ BarWidget {
   }
 
   readonly property var events: service ? service.events : []
-  readonly property int maxTitle: Math.max(6, Math.min(60, Number(setting("maxTitle", 22)) || 22))
+  // Characters for the whole label, time part included. The title is what
+  // gets shortened; hover shows it in full.
+  readonly property int maxLabel: Math.max(10, Math.min(80, Number(setting("maxLabel", 24)) || 24))
   readonly property bool showNext: setting("showNext", true) !== false
   readonly property bool use24h: !/a/i.test(Qt.locale(Commons.I18n.formatLocale).timeFormat(Locale.ShortFormat))
   readonly property var focusInfo: showNext ? Model.focusEvent(events, now, 12 * Model.HOUR) : null
   readonly property string calendarGlyph: "\u{F00ED}"
 
-  readonly property string label: {
-    if (!focusInfo) return ""
+  // [template, args, index of the title in args]
+  readonly property var labelParts: {
+    if (!focusInfo) return null
     var e = focusInfo.event
-    var title = Model.truncate(e.title || "…", maxTitle)
+    var title = e.title || "…"
     if (focusInfo.running) {
       var left = Model.minutesUntil(e.end, now)
       return left <= 90
-        ? strings.t("bar.running").arg(title).arg(left)
-        : strings.t("bar.runningHours").arg(title).arg(Model.timeText(e.end, use24h))
+        ? [strings.t("bar.running"), [title, left], 0]
+        : [strings.t("bar.runningHours"), [title, Model.timeText(e.end, use24h)], 0]
     }
     var mins = Model.minutesUntil(e.start, now)
-    if (mins <= 60) return strings.t("bar.soon").arg(title).arg(mins)
-    return strings.t("bar.later").arg(Model.timeText(e.start, use24h)).arg(title)
+    if (mins <= 60) return [strings.t("bar.soon"), [title, mins], 0]
+    return [strings.t("bar.later"), [Model.timeText(e.start, use24h), title], 1]
   }
+  readonly property string label: labelParts ? Model.fitLabel(labelParts[0], labelParts[1], labelParts[2], maxLabel) : ""
+  readonly property string fullLabel: labelParts ? Model.fill(labelParts[0], labelParts[1]) : ""
 
   readonly property int todayCount: Model.countOn(events, Model.startOfDay(now))
   readonly property bool soon: focusInfo !== null && !focusInfo.running
@@ -141,7 +146,7 @@ BarWidget {
     active: root.soon
     tooltipText: root.label === ""
       ? strings.tn("bar.count", root.todayCount).arg(Commons.I18n.formatNumber(root.todayCount))
-      : ""
+      : (root.fullLabel !== root.label ? root.fullLabel : "")
     pressFeedbackButtons: Qt.NoButton
 
     onPressed: function(b) {

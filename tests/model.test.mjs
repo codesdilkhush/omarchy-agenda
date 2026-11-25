@@ -125,3 +125,13 @@ test("neutralize removes markup characters", () => {
   assert.ok(!/[<>&]/.test(out))
   assert.equal(M.neutralize("Perso"), "Perso")
 })
+
+test("bar label fits the budget and keeps the time part", () => {
+  const long = M.fitLabel("%1 dans %2 min", ["Réunion trimestrielle avec toute l'équipe produit", 6], 0, 24)
+  assert.ok(long.length <= 24, long)
+  assert.ok(long.endsWith(" dans 6 min"), long)
+  assert.ok(long.includes("…"))
+  assert.equal(M.fitLabel("%1 %2", ["14:30", "Dentiste"], 1, 24), "14:30 Dentiste")
+  const tiny = M.fitLabel("%1 · jusqu'à %2", ["Bloc de travail", "18:00"], 0, 10)
+  assert.ok(tiny.startsWith("Blo"), tiny)
+})
