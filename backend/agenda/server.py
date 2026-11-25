@@ -27,6 +27,10 @@ TICK_SECONDS = 15
 RESUME_GAP_SECONDS = 90
 MAX_LIVE_NOTIFICATIONS = 12
 MAX_LINE = 256 * 1024
+# Omarchy's toasts treat a summary that opens with one glyph and two spaces
+# as carrying its own mark ("\U000F009A  Silenced"), drawn in the theme's
+# colour instead of the sender's initial. Nerd Font md-calendar.
+GLYPH = "\U000F00ED"
 
 DEFAULT_STRINGS = {
     "app": "Agenda",
@@ -399,7 +403,7 @@ class Server:
         tool = shutil.which("notify-send")
         if not tool:
             return
-        args = [tool, "-a", self.strings["app"], "-i", "x-office-calendar", "-u", urgency]
+        args = [tool, "-a", self.strings["app"], "-u", urgency]
         with self.live_lock:
             can_wait = bool(actions) and on_action is not None and \
                 self.live_notifications < MAX_LIVE_NOTIFICATIONS
@@ -408,7 +412,7 @@ class Server:
         if can_wait:
             for name, label in actions:
                 args += ["-A", name + "=" + label]
-        args += ["--", plain_summary(title)[:300], neutral_body(body)[:1500]]
+        args += ["--", GLYPH + "  " + plain_summary(title)[:300], neutral_body(body)[:1500]]
 
         def run():
             try:
