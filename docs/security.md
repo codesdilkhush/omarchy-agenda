@@ -13,13 +13,29 @@ crash reporting and no update check: the plugin is updated by
 
 | What | Where | Protection |
 |---|---|---|
-| Passwords and app passwords | System keyring via `secret-tool`, attributes `service=dadoux01.agenda account=<id>` | Encrypted by the keyring |
+| Passwords, app passwords, Google tokens, private calendar links | System keyring via `secret-tool`, attributes `service=dadoux01.agenda account=<id>` | Encrypted by the keyring |
 | …when no keyring is available | `~/.local/state/dadoux01.agenda/secrets.json` | File mode 0600, directory 0700; the panel tells you when this happens |
 | Accounts and calendars | `~/.config/dadoux01.agenda/accounts.json` | 0600; holds the marker `@keyring` instead of the password |
 | Event cache | `~/.local/state/dadoux01.agenda/cache.json` | 0600 |
 
 The helper writes files atomically. It refuses to read or write through a
 symlink, or in a directory owned by another user.
+
+## Google sign-in
+
+- The plugin ships no Google client id or secret. Each user brings their own
+  OAuth client ([google.md](google.md)), so no shared key can leak and no
+  one but Google sits between you and your calendar.
+- Sign-in follows the flow for installed apps (RFC 8252). A one-shot
+  listener opens on `127.0.0.1` only, on a random port, and closes as soon
+  as Google answers or after 5 minutes. It ignores any request without the
+  random `state` value of this sign-in. The code is exchanged with **PKCE**
+  (S256).
+- Only two permissions are asked for: `calendar.events` and
+  `calendar.calendarlist.readonly`. The refresh token, client id and client
+  secret are stored together in the keyring. Access tokens stay in memory.
+- Calendar links (`.ics`) can be secret addresses, so they go to the keyring
+  too, never to `accounts.json`.
 
 ## How it talks to servers
 

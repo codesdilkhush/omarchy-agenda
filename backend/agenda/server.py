@@ -20,7 +20,7 @@ import sys
 import threading
 import time
 
-from . import VERSION, engine as engine_mod, reminders, storage
+from . import VERSION, engine as engine_mod, google, reminders, storage
 
 FIRED_FILE = "fired.json"
 TICK_SECONDS = 15
@@ -84,6 +84,8 @@ class Server:
         self.last_sync = 0.0
         self.sync_requested = threading.Event()
         self.sync_queued = False
+        self.cancel_login = threading.Event()
+        self.login_lock = threading.Lock()
         self.live_notifications = 0
         self.live_lock = threading.Lock()
         state = storage.read_json(storage.state_path(FIRED_FILE), {})
@@ -140,10 +142,17 @@ class Server:
                 self.sync_queued = False
             self.do_sync(force=bool(p.get("force")))
             return {"syncedAt": eng.cache.get("syncedAt", 0)}
-        if op == "discover":
-            return eng.discover(str(p.get("kind", "")), str(p.get("server", "")),
-                                str(p.get("username", "")), str(p.get("password", "")),
-                                str(p.get("label", "")))
+        if op in ("connect", "discover"):
+            return eng.connect(p, self.cancel_login)
+        if op == "reconnect":
+            res = eng.reconnect(str(p.get("id", "")), self.cancel_login)
+            self.requests.put({"op": "sync", "params": {"force": True}})
+            return res
+        if op == "cancelLogin":
+            self.cancel_login.set()
+            return {}
+        if op == "googleClientFiles":
+            return {"files": google.find_client_files()}
         if op == "saveAccount":
             res = eng.save_account(str(p.get("token", "")), str(p.get("label", "")),
                                    p.get("calendars"))
@@ -188,25 +197,45 @@ class Server:
             self.synced_once = True
             self.push_state()
 
+    def run_request(self, req):
+        rid = req.get("id")
+        try:
+            result = self.handle(req)
+            if rid is not None:
+                self.emit({"id": rid, "ok": True, "result": result})
+        except engine_mod.EngineError as exc:
+            if rid is not None:
+                self.emit({"id": rid, "ok": False,
+                           "error": {"code": exc.code, "detail": str(exc.detail)[:300]}})
+        except Exception as exc:  # never let one bad request kill the helper
+            sys.stderr.write("agenda: %s failed: %r\n" % (req.get("op"), exc))
+            if rid is not None:
+                self.emit({"id": rid, "ok": False,
+                           "error": {"code": "internal", "detail": type(exc).__name__}})
+
     def worker(self):
         while True:
             req = self.requests.get()
             if req is None:
                 return
-            rid = req.get("id")
+            self.run_request(req)
+
+    def start_login(self, req):
+        """A browser sign-in waits on the user for minutes: it gets its own
+        thread so syncs and other requests keep flowing meanwhile. One at a
+        time; a second one is refused rather than racing for the browser."""
+        if not self.login_lock.acquire(blocking=False):
+            self.emit({"id": req.get("id"), "ok": False, "error": {"code": "login_busy", "detail": ""}})
+            return
+        self.cancel_login.clear()
+
+        def run():
             try:
-                result = self.handle(req)
-                if rid is not None:
-                    self.emit({"id": rid, "ok": True, "result": result})
-            except engine_mod.EngineError as exc:
-                if rid is not None:
-                    self.emit({"id": rid, "ok": False,
-                               "error": {"code": exc.code, "detail": str(exc.detail)[:300]}})
-            except Exception as exc:  # never let one bad request kill the helper
-                sys.stderr.write("agenda: %s failed: %r\n" % (req.get("op"), exc))
-                if rid is not None:
-                    self.emit({"id": rid, "ok": False,
-                               "error": {"code": "internal", "detail": type(exc).__name__}})
+                self.run_request(req)
+            finally:
+                self.login_lock.release()
+
+        threading.Thread(target=run, daemon=True).start()
 
     # ------------------------------------------------------------ scheduler
 
@@ -416,7 +445,15 @@ class Server:
                 continue
             if not isinstance(req, dict):
                 continue
-            self.requests.put(req)
+            op = req.get("op")
+            params = req.get("params") if isinstance(req.get("params"), dict) else {}
+            if op == "reconnect" or (op in ("connect", "discover") and params.get("kind") == "google"):
+                self.start_login(req)
+            elif op == "cancelLogin":
+                self.cancel_login.set()
+                self.emit({"id": req.get("id"), "ok": True, "result": {}})
+            else:
+                self.requests.put(req)
         # stdin closed: the shell went away. Finish what was asked, then exit.
         self.requests.put(None)
         worker.join(timeout=30)

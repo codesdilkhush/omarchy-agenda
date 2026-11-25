@@ -4,8 +4,10 @@
   "bar.runningHours": "%1 · until %2",
   "bar.soon": "%1 in %2 min",
   "bar.later": "%1 %2",
-  "bar.count": { "one": "%1 event today", "other": "%1 events today" },
-
+  "bar.count": {
+    "one": "%1 event today",
+    "other": "%1 events today"
+  },
   "panel.title": "AGENDA",
   "panel.today": "Today",
   "panel.tomorrow": "Tomorrow",
@@ -23,7 +25,10 @@
   "panel.syncing": "Syncing…",
   "panel.synced": "Synced at %1",
   "panel.neverSynced": "Not synced yet",
-  "panel.syncErrors": { "one": "%1 account could not sync", "other": "%1 accounts could not sync" },
+  "panel.syncErrors": {
+    "one": "%1 account could not sync",
+    "other": "%1 accounts could not sync"
+  },
   "panel.noAccounts": "No calendar connected yet.",
   "panel.connect": "Connect a calendar",
   "panel.quickAdd": "Quick add: Dentist tomorrow 2pm-3pm",
@@ -31,7 +36,10 @@
   "panel.quickAddFailed": "I couldn't find a date or time in that. Opening the form.",
   "panel.recurring": "Repeats",
   "panel.readOnly": "Read only",
-  "panel.reminders": { "one": "%1 reminder", "other": "%1 reminders" },
+  "panel.reminders": {
+    "one": "%1 reminder",
+    "other": "%1 reminders"
+  },
   "panel.deleteConfirm": "Delete “%1”?",
   "panel.deleteOccurrence": "This event only",
   "panel.deleteSeries": "All events in the series",
@@ -40,7 +48,6 @@
   "panel.working": "Working…",
   "panel.backendDown": "The Agenda helper is not running. Is python3 installed?",
   "panel.keys": "↑↓ move · Enter open · n new · s sync · Esc close",
-
   "form.title": "NEW EVENT",
   "form.name": "Title",
   "form.date": "Date (dd/mm/yyyy)",
@@ -54,24 +61,34 @@
   "form.reminder": "Reminder",
   "form.reminderNone": "No reminder",
   "form.reminderAtStart": "At the start",
-  "form.reminderMinutes": { "one": "%1 minute before", "other": "%1 minutes before" },
-  "form.reminderHours": { "one": "%1 hour before", "other": "%1 hours before" },
-  "form.reminderDays": { "one": "%1 day before", "other": "%1 days before" },
+  "form.reminderMinutes": {
+    "one": "%1 minute before",
+    "other": "%1 minutes before"
+  },
+  "form.reminderHours": {
+    "one": "%1 hour before",
+    "other": "%1 hours before"
+  },
+  "form.reminderDays": {
+    "one": "%1 day before",
+    "other": "%1 days before"
+  },
   "form.save": "Add event",
   "form.badDate": "Check the date (dd/mm/yyyy).",
   "form.badTime": "Check the times (14:30, 2pm…).",
   "form.endBeforeStart": "The end must be after the start.",
   "form.noCalendar": "No calendar you can write to. Connect one first.",
   "form.saved": "Event added",
-
   "accounts.title": "ACCOUNTS",
   "accounts.add": "Add an account",
   "accounts.remove": "Remove",
   "accounts.removeConfirm": "Remove “%1” from the widget? Nothing is deleted on the server.",
-  "accounts.calendars": { "one": "%1 calendar", "other": "%1 calendars" },
+  "accounts.calendars": {
+    "one": "%1 calendar",
+    "other": "%1 calendars"
+  },
   "accounts.empty": "No account yet.",
   "accounts.secretFile": "No keyring found: the password is stored in a private file (0600) instead.",
-
   "add.title": "ADD AN ACCOUNT",
   "add.icloud": "Apple iCloud",
   "add.icloudHint": "Apple ID e-mail and an app-specific password",
@@ -93,7 +110,6 @@
   "add.guideCaldav": "Most providers want an app password rather than your main password. Guide: docs/caldav.md",
   "add.choose": "Choose the calendars to show",
   "add.save": "Save",
-
   "settings.title": "SETTINGS",
   "settings.reminders": "Calendar reminders",
   "settings.remindersDesc": "Notify for the reminders set on each event, wherever they were set.",
@@ -105,13 +121,18 @@
   "settings.recap": "Daily recap",
   "settings.recapDesc": "A summary of the day at login and when waking up on a new day.",
   "settings.sync": "Sync every",
-  "settings.minutes": { "one": "%1 minute", "other": "%1 minutes" },
+  "settings.minutes": {
+    "one": "%1 minute",
+    "other": "%1 minutes"
+  },
   "settings.days": "Days shown",
-  "settings.daysValue": { "one": "%1 day", "other": "%1 days" },
+  "settings.daysValue": {
+    "one": "%1 day",
+    "other": "%1 days"
+  },
   "settings.defaultReminder": "Default reminder for new events",
   "settings.test": "Send a test notification",
   "settings.off": "Off",
-
   "error.auth_failed": "Wrong username or password. iCloud needs an app-specific password, not your Apple ID password.",
   "error.network": "Can't reach the server. Check your connection.",
   "error.timeout": "The server took too long to answer.",
@@ -136,7 +157,6 @@
   "error.server_error": "The server had a problem. Try again later.",
   "error.unknown_event": "That event is gone. It may have been deleted elsewhere.",
   "error.generic": "Something went wrong (%1).",
-
   "notify.app": "Agenda",
   "notify.inMinutes": "In %1 min",
   "notify.inHours": "In %1 h",
@@ -151,5 +171,35 @@
   "notify.open": "Open",
   "notify.recapTitle": "Today",
   "notify.recapEmpty": "Nothing planned today",
-  "notify.recapMore": "+%1 more"
+  "notify.recapMore": "+%1 more",
+  "add.googleHint": "Read and write, with your own Google Cloud OAuth client (5 minutes, once)",
+  "add.icsHint": "Read only: Google or Proton secret address, holidays, timetables…",
+  "add.icsUrl": "https://… or webcal://… link to the .ics file",
+  "add.guideIcs": "The link is kept in your keyring: private addresses give access to anyone who has them. Guide: docs/ics.md",
+  "add.guideGoogle": "Create a “Desktop app” OAuth client in your own Google Cloud project, then download its JSON file. Step by step: docs/google.md",
+  "add.googleFound": "Client files found in Downloads:",
+  "add.googlePath": "…or the full path to client_secret_….json",
+  "add.googleRefresh": "Look again",
+  "add.googleSignIn": "Sign in with Google",
+  "add.googleWaiting": "Finish signing in in your browser.",
+  "add.googleWaitingHint": "Allow both calendar permissions. Agenda comes back here by itself when Google is done.",
+  "accounts.reconnect": "Sign in again",
+  "accounts.reconnecting": "Finish signing in in your browser…",
+  "accounts.reconnected": "Signed in again",
+  "error.cancelled": "Sign-in was cancelled.",
+  "error.login_timeout": "Nothing came back from the browser within 5 minutes. Try again.",
+  "error.login_busy": "A sign-in is already waiting in the browser.",
+  "error.no_browser": "No browser could be opened (xdg-open is missing).",
+  "error.google_client_file": "That is not a Google OAuth client file. Download the JSON of a “Desktop app” client (docs/google.md).",
+  "error.google_client_web": "This client is of type “Web application”. Create one of type “Desktop app” instead.",
+  "error.google_client_invalid": "Google does not know this OAuth client. Was it deleted? Download a new one.",
+  "error.google_scopes": "Agenda needs both calendar permissions. Sign in again and leave both boxes ticked.",
+  "error.google_no_refresh": "Google did not grant offline access. Remove Agenda at myaccount.google.com › Security › Third-party access, then try again.",
+  "error.google_denied": "Google refused the sign-in.",
+  "error.google_token": "Google refused the sign-in (%1).",
+  "error.google_api_disabled": "The Google Calendar API is not enabled in your Cloud project (docs/google.md, step 2).",
+  "error.reauth_required": "Google signed this account out. If your OAuth app is in “Testing” mode, this happens every 7 days: publish it (docs/google.md).",
+  "error.bad_feed": "That link does not lead to a calendar (.ics) file.",
+  "error.bad_response": "The server sent an answer that could not be read.",
+  "error.unknown_provider": "This kind of account is not supported."
 }

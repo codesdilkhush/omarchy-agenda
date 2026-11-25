@@ -14,7 +14,7 @@ autres.
 
 | Quoi | Où | Protection |
 |---|---|---|
-| Mots de passe et mots de passe d'app | Trousseau du système via `secret-tool`, attributs `service=dadoux01.agenda account=<id>` | Chiffré par le trousseau |
+| Mots de passe, mots de passe d'app, jetons Google, liens de calendrier privés | Trousseau du système via `secret-tool`, attributs `service=dadoux01.agenda account=<id>` | Chiffré par le trousseau |
 | …quand aucun trousseau n'est disponible | `~/.local/state/dadoux01.agenda/secrets.json` | Fichier en 0600, dossier en 0700 ; le panneau te prévient quand ça arrive |
 | Comptes et calendriers | `~/.config/dadoux01.agenda/accounts.json` | 0600 ; contient le marqueur `@keyring` à la place du mot de passe |
 | Cache des événements | `~/.local/state/dadoux01.agenda/cache.json` | 0600 |
@@ -22,6 +22,24 @@ autres.
 Le service écrit les fichiers de façon atomique. Il refuse de lire ou
 d'écrire à travers un lien symbolique, ou dans un dossier appartenant à un
 autre utilisateur.
+
+## Connexion Google
+
+- Le plugin n'embarque aucun ID ni secret client Google. Chaque utilisateur
+  fournit son propre client OAuth ([google.fr.md](google.fr.md)) : aucune clé
+  partagée ne peut fuiter, et personne d'autre que Google ne se trouve entre
+  toi et ton agenda.
+- La connexion suit le flux des applications installées (RFC 8252). Un
+  récepteur à usage unique s'ouvre uniquement sur `127.0.0.1`, sur un port
+  aléatoire, et se ferme dès que Google répond ou au bout de 5 minutes. Il
+  ignore toute requête qui ne porte pas la valeur `state` aléatoire de cette
+  connexion. Le code est échangé avec **PKCE** (S256).
+- Seules deux autorisations sont demandées : `calendar.events` et
+  `calendar.calendarlist.readonly`. Le jeton de rafraîchissement, l'ID client
+  et le secret client sont rangés ensemble dans le trousseau. Les jetons
+  d'accès restent en mémoire.
+- Les liens de calendrier (`.ics`) peuvent être des adresses secrètes : ils
+  vont donc aussi dans le trousseau, jamais dans `accounts.json`.
 
 ## Comment il parle aux serveurs
 

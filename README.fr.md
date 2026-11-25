@@ -26,9 +26,9 @@ d'origine n'est pas modifiée.
 |---|---|---|
 | Apple iCloud | ✅ | lecture et écriture |
 | Tout serveur CalDAV (Fastmail, Nextcloud, Zoho, Yahoo, mailbox.org, Radicale…) | ✅ | lecture et écriture |
-| Google | prévu | lecture et écriture (ton propre client OAuth) |
+| Google | ✅ | lecture et écriture (ton propre client OAuth, environ 5 minutes une seule fois) |
+| Liens `.ics` / `webcal` (adresse secrète Google ou Proton, jours fériés…) | ✅ | lecture seule |
 | Microsoft / Outlook | prévu | lecture et écriture (ta propre app Azure) |
-| Liens `.ics` (Proton, jours fériés…) | prévu | lecture seule |
 
 ## Installation
 
@@ -51,7 +51,11 @@ calendrier** :
 
 - **iCloud** : voir [docs/icloud.fr.md](docs/icloud.fr.md). Il faut un *mot de
   passe pour app*, pas celui de l'identifiant Apple.
+- **Google** : voir [docs/google.fr.md](docs/google.fr.md). Tu crées ton propre
+  client OAuth dans Google Cloud, environ 5 minutes une seule fois ; le
+  plugin n'embarque aucun identifiant Google.
 - **Autre CalDAV** : voir [docs/caldav.fr.md](docs/caldav.fr.md).
+- **Un lien de calendrier** (`.ics`, `webcal://`) : voir [docs/ics.fr.md](docs/ics.fr.md).
 
 Choisis les calendriers à afficher, et c'est terminé. Tu pourras ensuite
 ajouter, masquer ou retirer des comptes dans **Comptes** (l'icône des
@@ -132,10 +136,13 @@ trousseau du système. Les détails sont dans [docs/security.fr.md](docs/securit
 | `~/.config/dadoux01.agenda/settings.json` | tes réglages |
 | `~/.local/state/dadoux01.agenda/cache.json` | cache des événements, pour le hors-ligne |
 | `~/.local/state/dadoux01.agenda/fired.json` | rappels déjà envoyés |
-| trousseau système, `service=dadoux01.agenda` | mots de passe |
+| trousseau système, `service=dadoux01.agenda` | mots de passe, connexion Google, liens de calendrier privés |
 
 ## Dépannage
 
+- **Google : « a déconnecté ce compte » chaque semaine** : ton app OAuth est
+  en mode *Test*. Publie-la ([docs/google.fr.md](docs/google.fr.md), étape 3),
+  ou utilise **Comptes › Se reconnecter**.
 - **« Identifiant ou mot de passe incorrect »** sur iCloud : utilise un mot
   de passe pour app, et active la double authentification sur l'identifiant
   Apple.

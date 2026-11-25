@@ -80,6 +80,17 @@ Column {
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
           }
+          Button {
+            visible: accountColumn.modelData.provider === "google"
+              && accountColumn.modelData.error === "reauth_required"
+            text: root.panel.strings.t("accounts.reconnect")
+            iconText: "\u{F02AD}"
+            enabled: !root.panel.busy
+            foreground: Commons.Color.accent
+            fontFamily: root.panel.fontFamily
+            bordered: true
+            onClicked: root.panel.reconnect(accountColumn.modelData)
+          }
         }
 
         PanelActionButton {

@@ -1,28 +1,23 @@
-"""Accounts, sync, and writes, independent of how requests arrive.
-
-Providers sit behind one small interface (discover / list / create / delete)
-so adding Google or Microsoft later is one module, not a rewrite.
-"""
+"""Accounts, sync, and writes, independent of how requests arrive and of
+which provider serves an account (see providers.py and google.py)."""
 
 import datetime as dt
 import hashlib
 import secrets as _random
 import threading
 import time
-import urllib.parse
 
-from . import caldav, ics, net, secrets, storage
+from . import caldav, google, ics, net, providers, secrets, storage
 
 ACCOUNTS_FILE = "accounts.json"
 SETTINGS_FILE = "settings.json"
 CACHE_FILE = "cache.json"
+CACHE_VERSION = 2
 
 WINDOW_PAST_DAYS = 1
 WINDOW_FUTURE_DAYS = 62
 PENDING_TTL = 600
-
-PALETTE = ["#7aa2f7", "#9ece6a", "#e0af68", "#f7768e", "#bb9af7", "#7dcfff",
-           "#ff9e64", "#73daca", "#c0caf5", "#db4b4b"]
+MAX_EVENTS_PER_CALENDAR = 20000
 
 DEFAULT_SETTINGS = {
     "syncMinutes": 10,
@@ -45,8 +40,12 @@ SETTING_LIMITS = {
     "agendaDays": (1, 31),
 }
 
-PROVIDERS = ("caldav",)
-KINDS = ("icloud", "caldav")
+PROVIDERS = {
+    "caldav": providers.CalDavProvider(),
+    "google": google.GoogleProvider(),
+    "ics": providers.IcsProvider(),
+}
+KIND_PROVIDER = {"icloud": "caldav", "caldav": "caldav", "ics": "ics", "google": "google"}
 
 
 class EngineError(Exception):
@@ -56,14 +55,16 @@ class EngineError(Exception):
         self.detail = detail
 
 
-def _clean(value, limit):
-    value = "".join(c for c in str(value or "") if c == "\n" or ord(c) >= 32)
-    return value.strip()[:limit]
+_clean = providers.clean
 
 
 def event_key(account_id, calendar_id, uid, rid):
     raw = "\x1f".join([account_id, calendar_id, uid, rid or ""])
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
+
+
+def _code(exc):
+    return getattr(exc, "code", None) or type(exc).__name__
 
 
 class Engine:
@@ -73,8 +74,8 @@ class Engine:
         self.accounts = self._load_accounts()
         self.settings = self._load_settings()
         self.cache = storage.read_json(storage.state_path(CACHE_FILE), {})
-        if not isinstance(self.cache, dict) or self.cache.get("version") != 1:
-            self.cache = {"version": 1, "calendars": {}, "syncedAt": 0, "errors": {}}
+        if not isinstance(self.cache, dict) or self.cache.get("version") != CACHE_VERSION:
+            self.cache = {"version": CACHE_VERSION, "calendars": {}, "syncedAt": 0, "errors": {}}
         self.pending = {}
         self.syncing = False
 
@@ -157,67 +158,95 @@ class Engine:
                 return acc
         raise EngineError("unknown_account")
 
-    def _password(self, acc):
+    def _secret(self, acc):
         secret = secrets.load(acc["id"], acc.get("secret", ""))
         if not secret:
             raise EngineError("missing_secret")
         return secret
 
-    def discover(self, kind, server, username, password, label=""):
-        if kind not in KINDS:
+    def _provider(self, acc):
+        return PROVIDERS[acc["provider"]]
+
+    def connect(self, params, cancel=None):
+        """Check credentials and list the calendars, without saving yet.
+        Google opens the browser here and waits for the user (up to 5 min)."""
+        kind = str(params.get("kind", ""))
+        name = KIND_PROVIDER.get(kind)
+        if not name:
             raise EngineError("unknown_provider")
-        username = _clean(username, 320)
-        password = str(password or "")
-        if not username or not password or len(password) > 1024:
-            raise EngineError("missing_credentials")
-        if kind == "icloud":
-            server = "https://caldav.icloud.com/"
         try:
-            base, cals = caldav.discover(server, username, password)
+            if name == "google":
+                pending = PROVIDERS["google"].connect(params, cancel)
+            else:
+                pending = PROVIDERS[name].connect(params)
+        except providers.ProviderError as exc:
+            raise EngineError(exc.code, exc.detail)
         except net.NetError as exc:
-            # iCloud answers 403, not 401, to an Apple ID / app password it
-            # does not accept, so the user gets the message that helps.
-            code = "auth_failed" if exc.code == "forbidden" and kind == "icloud" else exc.code
-            raise EngineError(code, exc.detail)
-        for i, cal in enumerate(cals):
-            if not cal.get("color"):
-                cal["color"] = PALETTE[i % len(PALETTE)]
+            raise EngineError(exc.code, exc.detail)
+        label = _clean(params.get("label"), 80) or pending.label
         token = _random.token_hex(16)
         now = time.time()
         with self.lock:
             self.pending = {k: v for k, v in self.pending.items() if now - v["at"] < PENDING_TTL}
-            self.pending[token] = {
-                "at": now, "kind": kind, "server": base, "username": username,
-                "password": password, "calendars": cals,
-                "label": _clean(label, 80) or ("iCloud" if kind == "icloud"
-                                               else urllib.parse.urlsplit(base).hostname or "CalDAV"),
-            }
-        return {"token": token, "label": self.pending[token]["label"],
-                "calendars": [{k: c[k] for k in ("id", "name", "color", "readOnly")} for c in cals]}
+            self.pending[token] = {"at": now, "pending": pending, "label": label}
+        return {"token": token, "label": label,
+                "calendars": [{"id": c["id"], "name": c["name"], "color": c["color"],
+                               "readOnly": c["readOnly"], "enabled": c.get("enabled", True)}
+                              for c in pending.calendars]}
+
+    # Kept for callers of the first version.
+    def discover(self, kind, server, username, password, label=""):
+        return self.connect({"kind": kind, "server": server, "username": username,
+                             "password": password, "label": label})
 
     def save_account(self, token, label, selection):
         with self.lock:
-            pending = self.pending.pop(token, None)
-        if not pending or time.time() - pending["at"] > PENDING_TTL:
+            entry = self.pending.pop(token, None)
+        if not entry or time.time() - entry["at"] > PENDING_TTL:
             raise EngineError("pending_expired")
+        pending = entry["pending"]
         chosen = {s.get("id"): s for s in (selection or []) if isinstance(s, dict)}
         account_id = _random.token_hex(6)
         cals = []
-        for cal in pending["calendars"]:
+        for cal in pending.calendars:
             sel = chosen.get(cal["id"], {})
             color = caldav.normalize_color(str(sel.get("color", ""))) or cal["color"]
-            cals.append({"id": cal["id"], "name": cal["name"], "color": color,
-                         "enabled": bool(sel.get("enabled", True)), "readOnly": cal["readOnly"]})
-        marker = secrets.store(account_id, pending["password"])
+            entry_cal = {"id": cal["id"], "name": cal["name"], "color": color,
+                         "enabled": bool(sel.get("enabled", cal.get("enabled", True))),
+                         "readOnly": bool(cal["readOnly"])}
+            if cal.get("defaultAlarms"):
+                entry_cal["defaultAlarms"] = cal["defaultAlarms"]
+            cals.append(entry_cal)
+        marker = secrets.store(account_id, pending.secret)
         account = {
-            "id": account_id, "provider": "caldav", "kind": pending["kind"],
-            "label": _clean(label, 80) or pending["label"], "server": pending["server"],
-            "username": pending["username"], "secret": marker, "calendars": cals,
+            "id": account_id, "provider": pending.provider, "kind": pending.kind,
+            "label": _clean(label, 80) or entry["label"], "server": pending.server,
+            "username": pending.username, "secret": marker, "calendars": cals,
         }
         with self.lock:
             self.accounts.append(account)
             self._save_accounts()
         return {"id": account_id, "secretStore": marker}
+
+    def reconnect(self, account_id, cancel=None):
+        """Sign a Google account in again after Google revoked its token
+        (seven days in "Testing" mode, a password change, a revoke)."""
+        acc = self._account(account_id)
+        if acc["provider"] != "google":
+            raise EngineError("unknown_provider")
+        try:
+            secret = PROVIDERS["google"].reconnect(self._secret(acc), cancel,
+                                                   login_hint=acc.get("username", ""))
+        except providers.ProviderError as exc:
+            raise EngineError(exc.code, exc.detail)
+        except net.NetError as exc:
+            raise EngineError(exc.code, exc.detail)
+        marker = secrets.store(acc["id"], secret)
+        with self.lock:
+            acc["secret"] = marker
+            self._save_accounts()
+            self.cache.get("errors", {}).pop(account_id, None)
+        return {"secretStore": marker}
 
     def update_account(self, account_id, label=None, calendars=None):
         with self.lock:
@@ -260,9 +289,10 @@ class Engine:
 
     def sync(self, force=False, only=None):
         """Refresh every enabled calendar. `only` = set of cache keys to
-        refetch regardless of their ctag."""
+        refetch even if the provider says nothing changed."""
         with self.lock:
             accounts = [dict(a, calendars=[dict(c) for c in a["calendars"]]) for a in self.accounts]
+            old = dict(self.cache.get("calendars", {}))
             self.syncing = True
         start, end = self.window()
         window_ms = int(start.timestamp() * 1000)
@@ -270,37 +300,42 @@ class Engine:
         fresh = {}
         try:
             for acc in accounts:
+                provider = self._provider(acc)
                 try:
-                    password = self._password(acc)
-                except EngineError as exc:
-                    errors[acc["id"]] = exc.code
+                    session = provider.session(acc, self._secret(acc))
+                except (EngineError, providers.ProviderError) as exc:
+                    errors[acc["id"]] = _code(exc)
+                    for cal in acc["calendars"]:
+                        ckey = acc["id"] + "|" + cal["id"]
+                        if ckey in old:
+                            fresh[ckey] = old[ckey]
                     continue
-                client = caldav.Client(acc["server"], acc["username"], password)
                 for cal in acc["calendars"]:
                     if not cal.get("enabled", True):
                         continue
                     ckey = acc["id"] + "|" + cal["id"]
-                    cached = self.cache.get("calendars", {}).get(ckey)
+                    cached = old.get(ckey)
+                    same_window = bool(cached) and cached.get("windowStart") == window_ms
+                    refetch = force or not same_window or bool(only and ckey in only)
                     try:
-                        ctag = ""
-                        try:
-                            ctag = client.ctag(cal["id"])
-                        except net.NetError as exc:
-                            if exc.code in ("auth_failed", "forbidden", "not_found"):
-                                raise
-                        if (not force and cached and ctag and cached.get("ctag") == ctag
-                                and cached.get("windowStart") == window_ms
-                                and not (only and ckey in only)):
+                        result = provider.fetch(session, acc, cal, start, end,
+                                                cached.get("state", "") if cached else "",
+                                                refetch, self.zone)
+                        if result is None and cached:
                             fresh[ckey] = cached
                             continue
-                        items = client.fetch_range(cal["id"], start.astimezone(ics.UTC),
-                                                   end.astimezone(ics.UTC))
-                        fresh[ckey] = {"ctag": ctag, "windowStart": window_ms,
-                                       "events": self._events_for(acc, cal, items, start, end)}
-                    except (net.NetError, ics.IcsError) as exc:
-                        errors[acc["id"]] = getattr(exc, "code", None) or str(exc)
+                        if result is None:
+                            result = provider.fetch(session, acc, cal, start, end, "", True, self.zone)
+                        state, occs = result
+                        fresh[ckey] = {"state": state or "", "windowStart": window_ms,
+                                       "events": self._events_for(acc, cal, occs)}
+                    except (net.NetError, ics.IcsError, providers.ProviderError) as exc:
+                        errors[acc["id"]] = _code(exc)
                         if cached:
                             fresh[ckey] = cached
+                        if _code(exc) in ("auth_failed", "reauth_required", "missing_secret",
+                                          "google_client_invalid"):
+                            break  # every calendar of this account would fail the same way
         finally:
             with self.lock:
                 self.syncing = False
@@ -311,35 +346,30 @@ class Engine:
             self._save_cache()
         return errors
 
-    def _events_for(self, acc, cal, items, start, end):
+    def _events_for(self, acc, cal, occs):
         out = []
-        for item in items:
-            try:
-                occs = ics.events_from_calendar(item["data"], start, end, self.zone)
-            except ics.IcsError:
-                continue
-            for o in occs:
-                out.append({
-                    "key": event_key(acc["id"], cal["id"], o["uid"], o["recurrence_id"]),
-                    "accountId": acc["id"],
-                    "calendarId": cal["id"],
-                    "uid": o["uid"][:500],
-                    "href": item["href"],
-                    "etag": item["etag"],
-                    "title": o["title"],
-                    "location": o["location"],
-                    "description": o["description"],
-                    "start": o["start_ms"],
-                    "end": o["end_ms"],
-                    "allDay": o["all_day"],
-                    "recurring": o["recurring"],
-                    "recurrenceId": o["recurrence_id"],
-                    "meetingUrl": o["meeting_url"],
-                    "alarms": o["alarms_before"],
-                    "alarmsAt": o["alarms_at"],
-                })
-                if len(out) >= 20000:
-                    return out
+        for o in occs:
+            out.append({
+                "key": event_key(acc["id"], cal["id"], o["uid"], o["recurrence_id"]),
+                "accountId": acc["id"],
+                "calendarId": cal["id"],
+                "uid": o["uid"][:500],
+                "href": o.get("href", ""),
+                "etag": o.get("etag", ""),
+                "title": o["title"],
+                "location": o["location"],
+                "description": o["description"],
+                "start": o["start_ms"],
+                "end": o["end_ms"],
+                "allDay": o["all_day"],
+                "recurring": o["recurring"],
+                "recurrenceId": o["recurrence_id"],
+                "meetingUrl": o["meeting_url"],
+                "alarms": o["alarms_before"],
+                "alarmsAt": o["alarms_at"],
+            })
+            if len(out) >= MAX_EVENTS_PER_CALENDAR:
+                break
         return out
 
     def events(self):
@@ -377,7 +407,7 @@ class Engine:
         acc = self._account(account_id)
         for cal in acc["calendars"]:
             if cal["id"] == calendar_id:
-                if cal.get("readOnly"):
+                if cal.get("readOnly") or acc["provider"] == "ics":
                     raise EngineError("read_only")
                 return acc, cal
         raise EngineError("unknown_calendar")
@@ -393,51 +423,36 @@ class Engine:
             raise EngineError("bad_time")
         if end_ms <= start_ms or end_ms - start_ms > 366 * 86400 * 1000:
             raise EngineError("bad_time")
-        all_day = bool(p.get("allDay"))
         reminders = []
         for m in p.get("reminders", []) or []:
             if isinstance(m, (int, float)) and not isinstance(m, bool) and 0 <= m <= 40320:
                 reminders.append(int(m))
-        if all_day:
-            start = dt.datetime.fromtimestamp(start_ms / 1000, self.zone).date()
-            end = dt.datetime.fromtimestamp(end_ms / 1000, self.zone).date()
-            if end <= start:
-                end = start + dt.timedelta(days=1)
-        else:
-            start = dt.datetime.fromtimestamp(start_ms / 1000, ics.UTC)
-            end = dt.datetime.fromtimestamp(end_ms / 1000, ics.UTC)
-        uid, text = ics.build_event(title, start, end, all_day,
-                                    _clean(p.get("location"), 300),
-                                    _clean(p.get("description"), 2000), reminders)
-        client = caldav.Client(acc["server"], acc["username"], self._password(acc))
+        all_day = bool(p.get("allDay"))
+        start_date = dt.datetime.fromtimestamp(start_ms / 1000, self.zone).date()
+        end_date = dt.datetime.fromtimestamp(end_ms / 1000, self.zone).date()
+        if end_date <= start_date:
+            end_date = start_date + dt.timedelta(days=1)
+        event = {
+            "title": title, "all_day": all_day,
+            "start_ms": start_ms, "end_ms": end_ms,
+            "start_date": start_date, "end_date": end_date,
+            "location": _clean(p.get("location"), 300),
+            "description": _clean(p.get("description"), 2000),
+            "reminders": reminders,
+        }
+        provider = self._provider(acc)
         try:
-            client.put_new(cal["id"], uid, text)
-        except net.NetError as exc:
+            provider.create(provider.session(acc, self._secret(acc)), acc, cal, event, self.zone)
+        except (net.NetError, providers.ProviderError) as exc:
             raise EngineError(exc.code, exc.detail)
         return {"calendarKey": acc["id"] + "|" + cal["id"]}
 
     def delete_event(self, key, scope):
         ev = self.find_event(key)
         acc, cal = self._writable(ev["accountId"], ev["calendarId"])
-        client = caldav.Client(acc["server"], acc["username"], self._password(acc))
+        provider = self._provider(acc)
         try:
-            if scope == "occurrence" and ev.get("recurring") and ev.get("recurrenceId"):
-                for _ in range(2):
-                    etag, text = client.get(ev["href"])
-                    try:
-                        updated = ics.add_exdate(text, ev["uid"], ev["recurrenceId"])
-                    except ics.IcsError as exc:
-                        raise EngineError("bad_event", str(exc))
-                    try:
-                        client.put_existing(ev["href"], updated, etag)
-                        break
-                    except net.NetError as exc:
-                        if exc.code != "conflict":
-                            raise
-                else:
-                    raise EngineError("conflict")
-            else:
-                client.delete(ev["href"], ev.get("etag", ""))
-        except net.NetError as exc:
+            provider.delete(provider.session(acc, self._secret(acc)), acc, cal, ev, scope)
+        except (net.NetError, providers.ProviderError) as exc:
             raise EngineError(exc.code, exc.detail)
         return {"calendarKey": acc["id"] + "|" + cal["id"]}

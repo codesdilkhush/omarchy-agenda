@@ -22,9 +22,9 @@ built-in clock untouched.
 |---|---|---|
 | Apple iCloud | ✅ | read and write |
 | Any CalDAV server (Fastmail, Nextcloud, Zoho, Yahoo, mailbox.org, Radicale…) | ✅ | read and write |
-| Google | planned | read and write (your own OAuth client) |
+| Google | ✅ | read and write (your own OAuth client, about 5 minutes once) |
+| `.ics` / `webcal` links (Google or Proton secret address, holidays…) | ✅ | read only |
 | Microsoft / Outlook | planned | read and write (your own app registration) |
-| `.ics` links (Proton, holidays…) | planned | read only |
 
 ## Install
 
@@ -45,7 +45,11 @@ Click the calendar icon in the bar, then **Connect a calendar**:
 
 - **iCloud**: see [docs/icloud.md](docs/icloud.md). You need an
   *app-specific password*, not your Apple ID password.
+- **Google**: see [docs/google.md](docs/google.md). You create your own
+  OAuth client in Google Cloud, about 5 minutes once; the plugin ships no
+  Google credentials.
 - **Other CalDAV**: see [docs/caldav.md](docs/caldav.md).
+- **A calendar link** (`.ics`, `webcal://`): see [docs/ics.md](docs/ics.md).
 
 Pick the calendars to show, and you are done. Accounts can be added, hidden
 or removed later under **Accounts** (the people icon).
@@ -123,10 +127,13 @@ are in [docs/security.md](docs/security.md).
 | `~/.config/dadoux01.agenda/settings.json` | your settings |
 | `~/.local/state/dadoux01.agenda/cache.json` | events cache, for offline use |
 | `~/.local/state/dadoux01.agenda/fired.json` | reminders already sent |
-| system keyring, `service=dadoux01.agenda` | passwords |
+| system keyring, `service=dadoux01.agenda` | passwords, Google sign-in, private calendar links |
 
 ## Troubleshooting
 
+- **Google: "signed this account out" every week**: your OAuth app is in
+  *Testing* mode. Publish it ([docs/google.md](docs/google.md), step 3), or
+  use **Accounts › Sign in again**.
 - **"Wrong username or password"** on iCloud: use an app-specific password,
   and turn on two-factor authentication on the Apple ID.
 - **The widget shows nothing**: run `omarchy plugin list` and check that

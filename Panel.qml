@@ -40,7 +40,8 @@ Panel {
 
   property string page: "agenda"
   property bool editing: false
-  property bool busy: false
+  property int busyCount: 0
+  readonly property bool busy: busyCount > 0
   property string selectedKey: ""
   property string expandedKey: ""
   property double now: Date.now()
@@ -176,7 +177,11 @@ Panel {
     editing = false
     page = p
     if (p === "form") Qt.callLater(function() { var f = pageItem("form"); if (f) f.reset(root.pendingPreset); root.pendingPreset = null })
-    else if (p === "add") Qt.callLater(function() { var a = pageItem("add"); if (a) a.reset() })
+    else if (p === "add") {
+      // A finished or abandoned flow starts over; one waiting on the browser
+      // or on the choice of calendars is picked up where it was.
+      if (addFlow.step !== "browser" && addFlow.step !== "calendars") addFlow = freshFlow
+    }
     else Qt.callLater(focusList)
   }
 
@@ -243,10 +248,11 @@ Panel {
 
   function call(op, params, done) {
     if (!service) { if (done) done(false, errorText("backend_down")); return }
-    busy = true
+    busyCount++
     service.request(op, params, function(msg) {
-      busy = false
-      if (done) done(msg.ok === true, msg.ok ? msg.result : errorText(msg.error ? msg.error.code : "internal"))
+      busyCount = Math.max(0, busyCount - 1)
+      var code = msg.ok ? "" : (msg.error ? String(msg.error.code) : "internal")
+      if (done) done(msg.ok === true, msg.ok ? msg.result : errorText(code), code)
     })
   }
 
@@ -291,12 +297,76 @@ Panel {
     call("updateAccount", { id: accountId, calendars: [{ id: calendarId, enabled: enabled }] }, null)
   }
 
-  function discover(params, done) { call("discover", params, done) }
+  // ------------------------------------------------------------ add account
+  //
+  // Kept here rather than in AddAccountPage: a Google sign-in happens in the
+  // browser, clicking there closes the popup and unloads the page, and the
+  // flow must still be where it was when the browser hands back.
 
-  function saveAccount(token, label, calendars, done) {
-    call("saveAccount", { token: token, label: label, calendars: calendars }, function(ok, result) {
-      if (ok && result.secretStore === "@file") showFlash(strings.t("accounts.secretFile"))
-      done(ok, result)
+  readonly property var freshFlow: ({ step: "provider", kind: "", error: "", token: "", found: [], chosen: ({}), label: "" })
+  property var addFlow: freshFlow
+  property var clientFiles: []
+
+  function setAddFlow(patch) {
+    var next = {}
+    for (var k in addFlow) next[k] = addFlow[k]
+    for (var p in patch) next[p] = patch[p]
+    addFlow = next
+  }
+
+  function loadClientFiles() {
+    if (!service) return
+    service.request("googleClientFiles", {}, function(msg) {
+      root.clientFiles = msg.ok && msg.result && Array.isArray(msg.result.files) ? msg.result.files : []
+    })
+  }
+
+  function connectAccount(params) {
+    var browser = params.kind === "google"
+    setAddFlow({ error: "", step: browser ? "browser" : addFlow.step })
+    call("connect", params, function(ok, result, code) {
+      if (!ok) {
+        setAddFlow({ step: "credentials", error: code === "cancelled" ? "" : result })
+        return
+      }
+      var chosen = {}
+      for (var i = 0; i < result.calendars.length; i++)
+        chosen[result.calendars[i].id] = result.calendars[i].enabled !== false
+      setAddFlow({ step: "calendars", token: result.token, found: result.calendars,
+                   chosen: chosen, label: result.label, error: "" })
+      // Back from the browser: bring the choice of calendars to the user.
+      if (browser && (!root.opened || root.page !== "add")) openPage("add")
+    })
+  }
+
+  function cancelLogin() {
+    if (service) service.request("cancelLogin", {}, null)
+    setAddFlow({ step: "credentials", error: "" })
+  }
+
+  function toggleFound(id) {
+    var c = {}
+    for (var k in addFlow.chosen) c[k] = addFlow.chosen[k]
+    c[id] = !(c[id] === true)
+    setAddFlow({ chosen: c })
+  }
+
+  function saveFoundAccount() {
+    var selection = []
+    for (var i = 0; i < addFlow.found.length; i++)
+      selection.push({ id: addFlow.found[i].id, enabled: addFlow.chosen[addFlow.found[i].id] === true })
+    call("saveAccount", { token: addFlow.token, label: addFlow.label, calendars: selection }, function(ok, result) {
+      if (!ok) { setAddFlow({ step: "credentials", error: result }); return }
+      if (result.secretStore === "@file") showFlash(strings.t("accounts.secretFile"))
+      addFlow = freshFlow
+      openPage("agenda")
+    })
+  }
+
+  function reconnect(acc) {
+    showFlash(strings.t("accounts.reconnecting"))
+    call("reconnect", { id: acc.id }, function(ok, result) {
+      showFlash(ok ? strings.t("accounts.reconnected") : result)
     })
   }
 
@@ -447,7 +517,6 @@ Panel {
             active: root.page === "add"
             visible: active
             sourceComponent: AddAccountPage { panel: root; width: addLoader.width }
-            onLoaded: item.reset()
           }
           Loader {
             id: settingsLoader

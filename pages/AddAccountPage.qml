@@ -5,72 +5,53 @@ import qs.Ui
 import "../components"
 import "../Model.js" as Model
 
-// Add an account in three steps: provider, credentials, calendars.
-// The password field is cleared as soon as the helper has it.
+// Add an account: provider, then credentials (or a browser sign-in), then
+// the calendars to show. The flow's state lives on the panel (panel.add*),
+// not here: signing in to Google means clicking into the browser, which
+// closes the popup, and the flow has to be where the user left it after.
 Column {
   id: root
 
   property var panel
-  property string step: "provider"     // provider | credentials | calendars
-  property string kind: ""             // icloud | caldav
-  property string error: ""
-  property string token: ""
-  property var found: []
-  property var chosen: ({})
+  readonly property var flow: panel.addFlow
 
   spacing: Style.space(10)
 
   function reset() {
-    step = "provider"
-    kind = ""
-    error = ""
-    token = ""
-    found = []
-    chosen = ({})
     userField.text = ""
     passField.text = ""
     serverField.text = ""
-    labelField.text = ""
+    urlField.text = ""
+    pathField.text = ""
   }
 
-  function pick(k) {
-    kind = k
-    step = "credentials"
-    error = ""
-    Qt.callLater(function() { userField.forceActiveFocus() })
+  function pick(kind) {
+    root.panel.setAddFlow({ step: "credentials", kind: kind, error: "" })
+    if (kind === "google") root.panel.loadClientFiles()
+    Qt.callLater(function() {
+      if (kind === "ics") urlField.forceActiveFocus()
+      else if (kind !== "google") userField.forceActiveFocus()
+    })
   }
 
-  function connect() {
-    error = ""
+  function connectPassword() {
     var password = passField.text
     passField.text = ""
-    root.panel.discover({
-      kind: kind,
-      server: kind === "icloud" ? "" : serverField.text,
+    root.panel.connectAccount({
+      kind: flow.kind,
+      server: flow.kind === "icloud" ? "" : serverField.text,
       username: userField.text,
       password: password,
       label: labelField.text
-    }, function(ok, result) {
-      if (!ok) { root.error = result; Qt.callLater(function() { passField.forceActiveFocus() }); return }
-      root.token = result.token
-      root.found = result.calendars
-      var c = {}
-      for (var i = 0; i < result.calendars.length; i++) c[result.calendars[i].id] = true
-      root.chosen = c
-      if (!labelField.text) labelField.text = result.label
-      root.step = "calendars"
     })
   }
 
-  function save() {
-    var selection = []
-    for (var i = 0; i < found.length; i++)
-      selection.push({ id: found[i].id, enabled: chosen[found[i].id] === true })
-    root.panel.saveAccount(token, labelField.text, selection, function(ok, result) {
-      if (!ok) { root.error = result; if (result) root.step = "credentials"; return }
-      root.reset()
-      root.panel.openPage("agenda")
-    })
+  function connectIcs() {
+    root.panel.connectAccount({ kind: "ics", url: urlField.text, label: labelField.text })
+  }
+
+  function connectGoogle(path) {
+    root.panel.connectAccount({ kind: "google", clientFile: path, label: labelField.text })
   }
 
   PageHeader {
@@ -80,28 +61,29 @@ Column {
 
   // ---- Step 1: provider
   Repeater {
-    model: root.step !== "provider" ? [] : [
-      { id: "icloud", title: root.panel.strings.t("add.icloud"), hint: root.panel.strings.t("add.icloudHint"), ready: true, glyph: "\u{F0035}" },
-      { id: "caldav", title: root.panel.strings.t("add.caldav"), hint: root.panel.strings.t("add.caldavHint"), ready: true, glyph: "\u{F00ED}" },
-      { id: "google", title: root.panel.strings.t("add.google"), hint: root.panel.strings.t("add.soon"), ready: false, glyph: "\u{F02AD}" },
-      { id: "microsoft", title: root.panel.strings.t("add.microsoft"), hint: root.panel.strings.t("add.soon"), ready: false, glyph: "\u{F05AA}" },
-      { id: "ics", title: root.panel.strings.t("add.ics"), hint: root.panel.strings.t("add.soon"), ready: false, glyph: "\u{F0337}" }
+    model: root.flow.step !== "provider" ? [] : [
+      { id: "icloud", title: root.panel.strings.t("add.icloud"), hint: root.panel.strings.t("add.icloudHint"), glyph: "\u{F0035}" },
+      { id: "google", title: root.panel.strings.t("add.google"), hint: root.panel.strings.t("add.googleHint"), glyph: "\u{F02AD}" },
+      { id: "caldav", title: root.panel.strings.t("add.caldav"), hint: root.panel.strings.t("add.caldavHint"), glyph: "\u{F00ED}" },
+      { id: "ics", title: root.panel.strings.t("add.ics"), hint: root.panel.strings.t("add.icsHint"), glyph: "\u{F0337}" },
+      { id: "microsoft", title: root.panel.strings.t("add.microsoft"), hint: root.panel.strings.t("add.soon"), glyph: "\u{F05AA}", soon: true }
     ]
 
     Rectangle {
       id: providerCard
       required property var modelData
+      readonly property bool ready: modelData.soon !== true
       width: root.width
       height: providerColumn.implicitHeight + Style.space(16)
       radius: Style.cornerRadius
-      color: providerMouse.containsMouse && modelData.ready ? Util.alpha(root.panel.fg, 0.08) : Util.alpha(root.panel.fg, 0.03)
-      opacity: modelData.ready ? 1 : 0.45
+      color: providerMouse.containsMouse && ready ? Util.alpha(root.panel.fg, 0.08) : Util.alpha(root.panel.fg, 0.03)
+      opacity: ready ? 1 : 0.45
 
       MouseArea {
         id: providerMouse
         anchors.fill: parent
         hoverEnabled: true
-        enabled: providerCard.modelData.ready
+        enabled: providerCard.ready
         cursorShape: Qt.PointingHandCursor
         onClicked: root.pick(providerCard.modelData.id)
       }
@@ -143,36 +125,45 @@ Column {
     }
   }
 
-  // ---- Step 2: credentials
   component Field: TextField {
     width: root.width
     foreground: root.panel.fg
     font.family: root.panel.fontFamily
-    Keys.onEscapePressed: root.step = "provider"
-    onAccepted: if (userField.text && passField.text) root.connect()
+    Keys.onEscapePressed: root.panel.setAddFlow({ step: "provider", error: "" })
   }
 
+  component Hint: PlainLabel {
+    width: root.width
+    color: Util.alpha(root.panel.fg, 0.55)
+    font.family: root.panel.fontFamily
+    font.pixelSize: Style.font.caption
+    wrapMode: Text.Wrap
+  }
+
+  component Heading: PlainLabel {
+    width: root.width
+    color: root.panel.fg
+    font.family: root.panel.fontFamily
+    font.bold: true
+  }
+
+  // ---- Step 2a: user name + password (iCloud, CalDAV)
   Column {
-    visible: root.step === "credentials"
+    visible: root.flow.step === "credentials" && (root.flow.kind === "icloud" || root.flow.kind === "caldav")
     width: root.width
     spacing: Style.space(8)
 
-    PlainLabel {
-      width: parent.width
-      text: root.kind === "icloud" ? root.panel.strings.t("add.icloud") : root.panel.strings.t("add.caldav")
-      color: root.panel.fg
-      font.family: root.panel.fontFamily
-      font.bold: true
-    }
+    Heading { text: root.flow.kind === "icloud" ? root.panel.strings.t("add.icloud") : root.panel.strings.t("add.caldav") }
     Field {
       id: userField
-      placeholderText: root.kind === "icloud" ? root.panel.strings.t("add.email") : root.panel.strings.t("add.username")
+      placeholderText: root.flow.kind === "icloud" ? root.panel.strings.t("add.email") : root.panel.strings.t("add.username")
       maximumLength: 320
       inputMethodHints: Qt.ImhEmailCharactersOnly | Qt.ImhNoAutoUppercase
+      onAccepted: passField.forceActiveFocus()
     }
     Field {
       id: serverField
-      visible: root.kind !== "icloud"
+      visible: root.flow.kind !== "icloud"
       placeholderText: root.panel.strings.t("add.server")
       maximumLength: 500
       inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase
@@ -180,23 +171,17 @@ Column {
     Field {
       id: passField
       password: true
-      placeholderText: root.kind === "icloud" ? root.panel.strings.t("add.password") : root.panel.strings.t("add.passwordGeneric")
+      placeholderText: root.flow.kind === "icloud" ? root.panel.strings.t("add.password") : root.panel.strings.t("add.passwordGeneric")
       maximumLength: 1024
       inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
+      onAccepted: if (userField.text && passField.text) root.connectPassword()
     }
     Field {
       id: labelField
       placeholderText: root.panel.strings.t("add.label")
       maximumLength: 80
     }
-    PlainLabel {
-      width: parent.width
-      text: root.kind === "icloud" ? root.panel.strings.t("add.guideIcloud") : root.panel.strings.t("add.guideCaldav")
-      color: Util.alpha(root.panel.fg, 0.55)
-      font.family: root.panel.fontFamily
-      font.pixelSize: Style.font.caption
-      wrapMode: Text.Wrap
-    }
+    Hint { text: root.flow.kind === "icloud" ? root.panel.strings.t("add.guideIcloud") : root.panel.strings.t("add.guideCaldav") }
     Button {
       width: parent.width
       text: root.panel.busy ? root.panel.strings.t("add.connecting") : root.panel.strings.t("add.connect")
@@ -204,25 +189,152 @@ Column {
       foreground: Commons.Color.accent
       fontFamily: root.panel.fontFamily
       bordered: true
-      onClicked: root.connect()
+      onClicked: root.connectPassword()
+    }
+  }
+
+  // ---- Step 2b: a calendar link
+  Column {
+    visible: root.flow.step === "credentials" && root.flow.kind === "ics"
+    width: root.width
+    spacing: Style.space(8)
+
+    Heading { text: root.panel.strings.t("add.ics") }
+    Field {
+      id: urlField
+      placeholderText: root.panel.strings.t("add.icsUrl")
+      maximumLength: 4000
+      inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase | Qt.ImhSensitiveData
+      onAccepted: if (text.trim()) root.connectIcs()
+    }
+    Hint { text: root.panel.strings.t("add.guideIcs") }
+    Button {
+      width: parent.width
+      text: root.panel.busy ? root.panel.strings.t("add.connecting") : root.panel.strings.t("add.connect")
+      enabled: !root.panel.busy && urlField.text.trim() !== ""
+      foreground: Commons.Color.accent
+      fontFamily: root.panel.fontFamily
+      bordered: true
+      onClicked: root.connectIcs()
+    }
+  }
+
+  // ---- Step 2c: Google, with the user's own OAuth client
+  Column {
+    visible: root.flow.step === "credentials" && root.flow.kind === "google"
+    width: root.width
+    spacing: Style.space(8)
+
+    Heading { text: root.panel.strings.t("add.google") }
+    Hint { text: root.panel.strings.t("add.guideGoogle") }
+
+    PlainLabel {
+      visible: root.panel.clientFiles.length > 0
+      width: parent.width
+      text: root.panel.strings.t("add.googleFound")
+      color: root.panel.fg
+      font.family: root.panel.fontFamily
+      font.pixelSize: Style.font.bodySmall
+    }
+
+    Repeater {
+      model: root.panel.clientFiles
+
+      Button {
+        required property var modelData
+        width: root.width
+        leftAlign: true
+        text: Model.neutralize(modelData.name)
+        iconText: "\u{F0214}"
+        enabled: !root.panel.busy
+        foreground: root.panel.fg
+        fontFamily: root.panel.fontFamily
+        bordered: true
+        onClicked: root.connectGoogle(modelData.path)
+      }
+    }
+
+    Field {
+      id: pathField
+      placeholderText: root.panel.strings.t("add.googlePath")
+      maximumLength: 1000
+      inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
+      onAccepted: if (text.trim()) root.connectGoogle(text.trim())
+    }
+
+    Row {
+      width: parent.width
+      spacing: Style.space(6)
+
+      Button {
+        width: (parent.width - Style.space(6)) / 2
+        text: root.panel.strings.t("add.googleRefresh")
+        iconText: "\u{F0450}"
+        enabled: !root.panel.busy
+        foreground: root.panel.fg
+        fontFamily: root.panel.fontFamily
+        bordered: true
+        onClicked: root.panel.loadClientFiles()
+      }
+      Button {
+        width: (parent.width - Style.space(6)) / 2
+        text: root.panel.strings.t("add.googleSignIn")
+        iconText: "\u{F02AD}"
+        enabled: !root.panel.busy && pathField.text.trim() !== ""
+        foreground: Commons.Color.accent
+        fontFamily: root.panel.fontFamily
+        bordered: true
+        onClicked: root.connectGoogle(pathField.text.trim())
+      }
+    }
+  }
+
+  // ---- Waiting for the browser
+  Column {
+    visible: root.flow.step === "browser"
+    width: root.width
+    spacing: Style.space(10)
+    topPadding: Style.space(6)
+
+    PlainLabel {
+      width: parent.width
+      horizontalAlignment: Text.AlignHCenter
+      text: root.panel.strings.t("add.googleWaiting")
+      color: root.panel.fg
+      font.family: root.panel.fontFamily
+      wrapMode: Text.Wrap
+    }
+    Hint {
+      horizontalAlignment: Text.AlignHCenter
+      text: root.panel.strings.t("add.googleWaitingHint")
+    }
+    Button {
+      anchors.horizontalCenter: parent.horizontalCenter
+      text: root.panel.strings.t("panel.cancel")
+      foreground: root.panel.fg
+      fontFamily: root.panel.fontFamily
+      bordered: true
+      onClicked: root.panel.cancelLogin()
     }
   }
 
   // ---- Step 3: calendars
   Column {
-    visible: root.step === "calendars"
+    visible: root.flow.step === "calendars"
     width: root.width
     spacing: Style.space(6)
 
+    Heading { text: root.flow.label || "" }
     PlainLabel {
       width: parent.width
       text: root.panel.strings.t("add.choose")
-      color: root.panel.fg
+      color: Util.alpha(root.panel.fg, 0.7)
       font.family: root.panel.fontFamily
+      font.pixelSize: Style.font.bodySmall
     }
 
     Repeater {
-      model: root.found
+      model: root.flow.found || []
 
       Item {
         id: foundRow
@@ -255,13 +367,9 @@ Column {
           id: foundToggle
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          checked: root.chosen[foundRow.modelData.id] === true
+          checked: root.flow.chosen[foundRow.modelData.id] === true
           foreground: root.panel.fg
-          onToggled: {
-            var c = Object.assign({}, root.chosen)
-            c[foundRow.modelData.id] = !(c[foundRow.modelData.id] === true)
-            root.chosen = c
-          }
+          onToggled: root.panel.toggleFound(foundRow.modelData.id)
         }
       }
     }
@@ -274,14 +382,14 @@ Column {
       foreground: Commons.Color.accent
       fontFamily: root.panel.fontFamily
       bordered: true
-      onClicked: root.save()
+      onClicked: root.panel.saveFoundAccount()
     }
   }
 
   PlainLabel {
-    visible: root.error !== ""
+    visible: (root.flow.error || "") !== ""
     width: root.width
-    text: root.error
+    text: root.flow.error || ""
     color: Commons.Color.urgent
     font.family: root.panel.fontFamily
     font.pixelSize: Style.font.bodySmall

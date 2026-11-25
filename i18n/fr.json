@@ -4,8 +4,10 @@
   "bar.runningHours": "%1 · jusqu'à %2",
   "bar.soon": "%1 dans %2 min",
   "bar.later": "%1 %2",
-  "bar.count": { "one": "%1 événement aujourd'hui", "other": "%1 événements aujourd'hui" },
-
+  "bar.count": {
+    "one": "%1 événement aujourd'hui",
+    "other": "%1 événements aujourd'hui"
+  },
   "panel.title": "AGENDA",
   "panel.today": "Aujourd'hui",
   "panel.tomorrow": "Demain",
@@ -23,7 +25,10 @@
   "panel.syncing": "Synchronisation…",
   "panel.synced": "Synchronisé à %1",
   "panel.neverSynced": "Pas encore synchronisé",
-  "panel.syncErrors": { "one": "%1 compte n'a pas pu se synchroniser", "other": "%1 comptes n'ont pas pu se synchroniser" },
+  "panel.syncErrors": {
+    "one": "%1 compte n'a pas pu se synchroniser",
+    "other": "%1 comptes n'ont pas pu se synchroniser"
+  },
   "panel.noAccounts": "Aucun calendrier connecté pour l'instant.",
   "panel.connect": "Connecter un calendrier",
   "panel.quickAdd": "Ajout rapide : Dentiste demain 14h-15h",
@@ -31,7 +36,10 @@
   "panel.quickAddFailed": "Je n'ai pas trouvé de date ni d'heure. J'ouvre le formulaire.",
   "panel.recurring": "Récurrent",
   "panel.readOnly": "Lecture seule",
-  "panel.reminders": { "one": "%1 rappel", "other": "%1 rappels" },
+  "panel.reminders": {
+    "one": "%1 rappel",
+    "other": "%1 rappels"
+  },
   "panel.deleteConfirm": "Supprimer « %1 » ?",
   "panel.deleteOccurrence": "Cet événement seulement",
   "panel.deleteSeries": "Toute la série",
@@ -40,7 +48,6 @@
   "panel.working": "En cours…",
   "panel.backendDown": "Le service Agenda ne tourne pas. python3 est-il installé ?",
   "panel.keys": "↑↓ naviguer · Entrée ouvrir · n nouveau · s synchro · Échap fermer",
-
   "form.title": "NOUVEL ÉVÉNEMENT",
   "form.name": "Titre",
   "form.date": "Date (jj/mm/aaaa)",
@@ -54,24 +61,34 @@
   "form.reminder": "Rappel",
   "form.reminderNone": "Aucun rappel",
   "form.reminderAtStart": "Au début",
-  "form.reminderMinutes": { "one": "%1 minute avant", "other": "%1 minutes avant" },
-  "form.reminderHours": { "one": "%1 heure avant", "other": "%1 heures avant" },
-  "form.reminderDays": { "one": "%1 jour avant", "other": "%1 jours avant" },
+  "form.reminderMinutes": {
+    "one": "%1 minute avant",
+    "other": "%1 minutes avant"
+  },
+  "form.reminderHours": {
+    "one": "%1 heure avant",
+    "other": "%1 heures avant"
+  },
+  "form.reminderDays": {
+    "one": "%1 jour avant",
+    "other": "%1 jours avant"
+  },
   "form.save": "Ajouter",
   "form.badDate": "Vérifie la date (jj/mm/aaaa).",
   "form.badTime": "Vérifie les heures (14:30, 14h…).",
   "form.endBeforeStart": "La fin doit être après le début.",
   "form.noCalendar": "Aucun calendrier modifiable. Connecte-en un d'abord.",
   "form.saved": "Événement ajouté",
-
   "accounts.title": "COMPTES",
   "accounts.add": "Ajouter un compte",
   "accounts.remove": "Retirer",
   "accounts.removeConfirm": "Retirer « %1 » du widget ? Rien n'est supprimé sur le serveur.",
-  "accounts.calendars": { "one": "%1 calendrier", "other": "%1 calendriers" },
+  "accounts.calendars": {
+    "one": "%1 calendrier",
+    "other": "%1 calendriers"
+  },
   "accounts.empty": "Aucun compte pour l'instant.",
   "accounts.secretFile": "Aucun trousseau trouvé : le mot de passe est rangé dans un fichier privé (0600) à la place.",
-
   "add.title": "AJOUTER UN COMPTE",
   "add.icloud": "Apple iCloud",
   "add.icloudHint": "E-mail de l'identifiant Apple et mot de passe pour app",
@@ -93,7 +110,6 @@
   "add.guideCaldav": "La plupart des fournisseurs demandent un mot de passe d'application plutôt que le principal. Guide : docs/caldav.fr.md",
   "add.choose": "Choisis les calendriers à afficher",
   "add.save": "Enregistrer",
-
   "settings.title": "RÉGLAGES",
   "settings.reminders": "Rappels du calendrier",
   "settings.remindersDesc": "Notifie les rappels de chaque événement, où qu'ils aient été réglés.",
@@ -105,13 +121,18 @@
   "settings.recap": "Récap du jour",
   "settings.recapDesc": "Un résumé de la journée à l'ouverture de session et au réveil un nouveau jour.",
   "settings.sync": "Synchroniser toutes les",
-  "settings.minutes": { "one": "%1 minute", "other": "%1 minutes" },
+  "settings.minutes": {
+    "one": "%1 minute",
+    "other": "%1 minutes"
+  },
   "settings.days": "Jours affichés",
-  "settings.daysValue": { "one": "%1 jour", "other": "%1 jours" },
+  "settings.daysValue": {
+    "one": "%1 jour",
+    "other": "%1 jours"
+  },
   "settings.defaultReminder": "Rappel par défaut des nouveaux événements",
   "settings.test": "Envoyer une notification de test",
   "settings.off": "Désactivé",
-
   "error.auth_failed": "Identifiant ou mot de passe incorrect. iCloud demande un mot de passe pour app, pas celui de l'identifiant Apple.",
   "error.network": "Impossible de joindre le serveur. Vérifie la connexion.",
   "error.timeout": "Le serveur a mis trop de temps à répondre.",
@@ -136,7 +157,6 @@
   "error.server_error": "Le serveur a un problème. Réessaie plus tard.",
   "error.unknown_event": "Cet événement n'existe plus. Il a peut-être été supprimé ailleurs.",
   "error.generic": "Un problème est survenu (%1).",
-
   "notify.app": "Agenda",
   "notify.inMinutes": "Dans %1 min",
   "notify.inHours": "Dans %1 h",
@@ -151,5 +171,35 @@
   "notify.open": "Ouvrir",
   "notify.recapTitle": "Aujourd'hui",
   "notify.recapEmpty": "Rien de prévu aujourd'hui",
-  "notify.recapMore": "+%1 autres"
+  "notify.recapMore": "+%1 autres",
+  "add.googleHint": "Lecture et écriture, avec ton propre client OAuth Google Cloud (5 minutes, une seule fois)",
+  "add.icsHint": "Lecture seule : adresse secrète Google ou Proton, jours fériés, emplois du temps…",
+  "add.icsUrl": "Lien https://… ou webcal://… vers le fichier .ics",
+  "add.guideIcs": "Le lien est rangé dans le trousseau : une adresse privée donne accès à quiconque la possède. Guide : docs/ics.fr.md",
+  "add.guideGoogle": "Crée un client OAuth « Application de bureau » dans ton propre projet Google Cloud, puis télécharge son fichier JSON. Pas à pas : docs/google.fr.md",
+  "add.googleFound": "Fichiers client trouvés dans Téléchargements :",
+  "add.googlePath": "…ou le chemin complet vers client_secret_….json",
+  "add.googleRefresh": "Chercher à nouveau",
+  "add.googleSignIn": "Se connecter avec Google",
+  "add.googleWaiting": "Termine la connexion dans ton navigateur.",
+  "add.googleWaitingHint": "Accepte les deux autorisations de calendrier. Agenda revient ici tout seul quand Google a fini.",
+  "accounts.reconnect": "Se reconnecter",
+  "accounts.reconnecting": "Termine la connexion dans ton navigateur…",
+  "accounts.reconnected": "Reconnecté",
+  "error.cancelled": "Connexion annulée.",
+  "error.login_timeout": "Rien n'est revenu du navigateur en 5 minutes. Réessaie.",
+  "error.login_busy": "Une connexion attend déjà dans le navigateur.",
+  "error.no_browser": "Impossible d'ouvrir un navigateur (xdg-open est absent).",
+  "error.google_client_file": "Ce n'est pas un fichier client OAuth Google. Télécharge le JSON d'un client « Application de bureau » (docs/google.fr.md).",
+  "error.google_client_web": "Ce client est de type « Application Web ». Crée plutôt un client « Application de bureau ».",
+  "error.google_client_invalid": "Google ne connaît pas ce client OAuth. A-t-il été supprimé ? Télécharges-en un nouveau.",
+  "error.google_scopes": "Agenda a besoin des deux autorisations de calendrier. Reconnecte-toi en laissant les deux cases cochées.",
+  "error.google_no_refresh": "Google n'a pas accordé l'accès hors ligne. Retire Agenda dans myaccount.google.com › Sécurité › Accès tiers, puis réessaie.",
+  "error.google_denied": "Google a refusé la connexion.",
+  "error.google_token": "Google a refusé la connexion (%1).",
+  "error.google_api_disabled": "L'API Google Calendar n'est pas activée dans ton projet Cloud (docs/google.fr.md, étape 2).",
+  "error.reauth_required": "Google a déconnecté ce compte. Si ton app OAuth est en mode « Test », ça arrive tous les 7 jours : publie-la (docs/google.fr.md).",
+  "error.bad_feed": "Ce lien ne mène pas à un fichier de calendrier (.ics).",
+  "error.bad_response": "Le serveur a envoyé une réponse illisible.",
+  "error.unknown_provider": "Ce type de compte n'est pas pris en charge."
 }
