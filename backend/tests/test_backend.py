@@ -154,6 +154,7 @@ class IsolatedDirs(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         env = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": self.tmp.name + "/c",
+                                           "XDG_DATA_HOME": self.tmp.name + "/d",
                                            "XDG_STATE_HOME": self.tmp.name + "/s", "TZ": "Europe/Paris"})
         env.start()
         self.addCleanup(env.stop)
@@ -383,8 +384,9 @@ class ServerTests(IsolatedDirs):
         args = calls[0]
         self.assertEqual(args[-3], "--")
         self.assertEqual(args[-2], "<b>$(rm -rf ~)</b>", "summary is plain text: shown as typed")
-        self.assertEqual(args[args.index("-i") + 1], server.ICON)
-        self.assertTrue(os.path.isfile(server.ICON))
+        self.assertEqual(args[args.index("-i") + 1], server.ICON_NAME)
+        with open(server.icon_target(), "rb") as a, open(server.ICON, "rb") as b:
+            self.assertEqual(a.read(), b.read())
         self.assertFalse(any(ch in args[-1] for ch in "<>&"), "body must carry no markup characters")
         self.assertIn("evil.example", args[-1])
         self.assertNotIn("-A", args)

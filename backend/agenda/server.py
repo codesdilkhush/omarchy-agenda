@@ -27,11 +27,49 @@ TICK_SECONDS = 15
 RESUME_GAP_SECONDS = 90
 MAX_LIVE_NOTIFICATIONS = 12
 MAX_LINE = 256 * 1024
-# The plugin's own icon, by absolute path: no icon theme has to know about
-# it, and both Omarchy's toasts and notification history pick it up instead
-# of drawing the app's initial.
+# The plugin's icon. Omarchy keeps only an icon *name* from the theme in its
+# notification history (a path is dropped), so the SVG is installed once in
+# the user's hicolor theme, the fallback every icon theme inherits, and sent
+# by name. The path is the fallback if that install is not possible.
 ICON = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                      "..", "..", "icons", "agenda.svg"))
+ICON_NAME = "dadoux01-agenda"
+
+
+def icon_target():
+    data = os.environ.get("XDG_DATA_HOME", "")
+    if not data or not os.path.isabs(data):
+        data = os.path.join(os.path.expanduser("~"), ".local", "share")
+    return os.path.join(data, "icons", "hicolor", "scalable", "apps", ICON_NAME + ".svg")
+
+
+def install_icon():
+    """Copy the icon into the user's theme if it is missing or outdated.
+    Returns the value to pass to notify-send -i."""
+    try:
+        with open(ICON, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return ""
+    target = icon_target()
+    try:
+        if os.path.islink(target):
+            return ICON
+        try:
+            with open(target, "rb") as fh:
+                if fh.read() == data:
+                    return ICON_NAME
+        except OSError:
+            pass
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        tmp = target + ".tmp-%d" % os.getpid()
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        os.replace(tmp, target)
+        return ICON_NAME
+    except OSError:
+        return ICON
 
 DEFAULT_STRINGS = {
     "app": "Agenda",
@@ -89,6 +127,7 @@ class Server:
         self.last_sync = 0.0
         self.sync_requested = threading.Event()
         self.sync_queued = False
+        self.icon = install_icon()
         self.cancel_login = threading.Event()
         self.login_lock = threading.Lock()
         self.live_notifications = 0
@@ -405,8 +444,8 @@ class Server:
         if not tool:
             return
         args = [tool, "-a", self.strings["app"], "-u", urgency]
-        if os.path.isfile(ICON):
-            args += ["-i", ICON]
+        if self.icon:
+            args += ["-i", self.icon]
         with self.live_lock:
             can_wait = bool(actions) and on_action is not None and \
                 self.live_notifications < MAX_LIVE_NOTIFICATIONS
