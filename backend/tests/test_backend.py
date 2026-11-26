@@ -21,6 +21,8 @@ class ScopeTests(unittest.TestCase):
     def test_scope(self):
         self.assertEqual(net.auth_scope("https://caldav.icloud.com/"), "icloud.com")
         self.assertEqual(net.auth_scope("https://example.com/dav"), "example.com")
+        self.assertEqual(net.auth_scope("https://mycal.co.uk/dav"), "mycal.co.uk")
+        self.assertEqual(net.auth_scope("https://tenant.nextcloud-hoster.org/"), "tenant.nextcloud-hoster.org")
         self.assertTrue(net.host_in_scope("p42-caldav.icloud.com", "icloud.com"))
         self.assertFalse(net.host_in_scope("icloud.com.evil.io", "icloud.com"))
         self.assertFalse(net.host_in_scope("evilicloud.com", "icloud.com"))
@@ -28,6 +30,13 @@ class ScopeTests(unittest.TestCase):
     def test_insecure_url_refused(self):
         with self.assertRaises(net.NetError) as ctx:
             net.request("GET", "http://example.com/")
+        self.assertEqual(ctx.exception.code, "insecure_url")
+
+    def test_redirect_to_loopback_refused(self):
+        FakeConn.routes = {("GET", "caldav.icloud.com", "/"): (302, {"Location": "https://127.0.0.1/secret"}, "")}
+        with mock.patch("http.client.HTTPSConnection", FakeConn):
+            with self.assertRaises(net.NetError) as ctx:
+                net.request("GET", "https://caldav.icloud.com/", auth="Basic secret")
         self.assertEqual(ctx.exception.code, "insecure_url")
 
 
@@ -185,6 +194,13 @@ class CalDavTests(IsolatedDirs):
         with self.assertRaises(net.NetError):
             caldav.discover("https://caldav.icloud.com/", "me@icloud.com", "p")
 
+    def test_unsafe_xml_rejected_beyond_4kb(self):
+        pad = "<!-- " + ("a" * 5000) + " -->"
+        payload = b'<?xml version="1.0"?>' + pad.encode() + b'<!DOCTYPE foo><x/>'
+        with self.assertRaises(net.NetError) as ctx:
+            caldav.parse_xml(payload)
+        self.assertEqual(ctx.exception.code, "unsafe_xml")
+
     def test_auth_failure(self):
         FakeConn.routes[("PROPFIND", "caldav.icloud.com", "/")] = (401, {}, "")
         with self.assertRaises(net.NetError) as ctx:
@@ -240,6 +256,27 @@ class EngineTests(IsolatedDirs):
                 dt.datetime(2026, 11, 24, tzinfo=PARIS), dt.datetime(2027, 1, 25, tzinfo=PARIS))):
             eng.sync()
         self.assertNotIn("REPORT", [m for m, *_ in FakeConn.seen])
+
+    def test_sync_partial_auth_failure_preserves_remaining_calendars(self):
+        eng = engine.Engine()
+        found = eng.discover("icloud", "", "me@icloud.com", "app-pass")
+        eng.save_account(found["token"], "", [{"id": c["id"], "enabled": True} for c in found["calendars"]])
+        cal0 = found["calendars"][0]["id"]
+        cal1 = found["calendars"][1]["id"]
+        FakeConn.routes[("PROPFIND", "p9-caldav.icloud.com", "/123/calendars/holidays/")] = (207, {}, CTAG)
+        FakeConn.routes[("REPORT", "p9-caldav.icloud.com", "/123/calendars/holidays/")] = (207, {}, REPORT)
+        with mock.patch.object(engine.Engine, "window", lambda self, now=None: (
+                dt.datetime(2026, 11, 24, tzinfo=PARIS), dt.datetime(2027, 1, 25, tzinfo=PARIS))):
+            self.assertEqual(eng.sync(), {})
+        # Fail cal0 with 401 on next sync; cal1 cached data must survive the early break.
+        FakeConn.routes[("PROPFIND", "p9-caldav.icloud.com", "/123/calendars/home/")] = (401, {}, "")
+        with mock.patch.object(engine.Engine, "window", lambda self, now=None: (
+                dt.datetime(2026, 11, 24, tzinfo=PARIS), dt.datetime(2027, 1, 25, tzinfo=PARIS))):
+            errors = eng.sync(force=True)
+        self.assertEqual(list(errors.values()), ["auth_failed"])
+        acc_id = eng.accounts[0]["id"]
+        self.assertIn(acc_id + "|" + cal0, eng.cache["calendars"])
+        self.assertIn(acc_id + "|" + cal1, eng.cache["calendars"])
 
     def test_delete_series_uses_if_match(self):
         eng = engine.Engine()
@@ -303,6 +340,15 @@ class EngineTests(IsolatedDirs):
         eng.remove_account(res["id"])
         self.assertEqual(eng.accounts, [])
         self.assertIsNone(secrets.load(res["id"], "@file"))
+
+    def test_corrupt_secrets_file_not_overwritten(self):
+        storage.ensure_dir(storage.state_dir())
+        with open(storage.state_path("secrets.json"), "w") as fh:
+            fh.write("{corrupt")
+        with self.assertRaises(storage.StorageError):
+            secrets.store("acc1", "secret")
+        with open(storage.state_path("secrets.json")) as fh:
+            self.assertEqual(fh.read(), "{corrupt")
 
 
 def ev(key="k", start=0, end=None, alarms=(), all_day=False, title="T"):

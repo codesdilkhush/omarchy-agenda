@@ -64,7 +64,7 @@ Column {
           }
           PlainLabel {
             width: parent.width
-            text: accountColumn.modelData.username + "  ·  "
+            text: (accountColumn.modelData.username ? accountColumn.modelData.username + "  ·  " : "")
               + root.panel.strings.tn("accounts.calendars", accountColumn.modelData.calendars.length)
                   .arg(accountColumn.modelData.calendars.length)
             color: Util.alpha(root.panel.fg, 0.55)

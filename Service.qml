@@ -85,6 +85,7 @@ Item {
   // ------------------------------------------------------------- the helper
 
   property int restartDelay: 1000
+  property bool destroying: false
 
   Process {
     id: helper
@@ -113,6 +114,7 @@ Item {
         for (var id in pending) {
           try { pending[id]({ ok: false, error: { code: "backend_down", detail: "" } }) } catch (e) {}
         }
+        if (root.destroying) return
         restartTimer.interval = root.restartDelay
         root.restartDelay = Math.min(60000, root.restartDelay * 2)
         restartTimer.start()
@@ -123,11 +125,16 @@ Item {
   Timer {
     id: restartTimer
     repeat: false
-    onTriggered: helper.running = true
+    onTriggered: if (!root.destroying) helper.running = true
   }
 
   Component.onCompleted: helper.running = true
-  Component.onDestruction: helper.running = false
+  Component.onDestruction: {
+    root.destroying = true
+    restartTimer.stop()
+    configureTimer.stop()
+    helper.running = false
+  }
 
   // Notification text is written by the helper, in the shell's language.
   readonly property var notificationKeys: [
