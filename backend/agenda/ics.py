@@ -15,7 +15,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 MAX_ICS_BYTES = 10 * 1024 * 1024
 MAX_LINES = 400_000
 MAX_INSTANCES_PER_EVENT = 500
-MAX_DATE_LIST_TOKENS = 5_000
+# RDATE and EXDATE values read per event, all their properties together.
+MAX_DATE_VALUES_PER_EVENT = 5_000
 MAX_PERIODS = 100_000
 MAX_TEXT = {"SUMMARY": 300, "LOCATION": 300, "DESCRIPTION": 2000}
 
@@ -117,35 +118,11 @@ class Component:
 
 def unfold(text):
     lines = []
-    raw_count = 0
-    i, n = 0, len(text)
-    while i <= n:
-        if i == n:
-            if n == 0 or text[-1] in ("\r", "\n"):
-                raw_count += 1
-                if raw_count > MAX_LINES:
-                    raise IcsError("too_many_lines")
-                lines.append("")
-            break
-        nl_r = text.find("\r", i)
-        nl_n = text.find("\n", i)
-        if nl_r == -1:
-            end = nl_n if nl_n != -1 else n
-        elif nl_n == -1:
-            end = nl_r
-        else:
-            end = nl_r if nl_r < nl_n else nl_n
-        raw_count += 1
-        if raw_count > MAX_LINES:
-            raise IcsError("too_many_lines")
-        line = text[i:end]
+    for line in re.split(r"\r\n|\n|\r", text):
         if line[:1] in (" ", "\t") and lines:
             lines[-1] += line[1:]
         else:
             lines.append(line)
-        if end == n:
-            break
-        i = end + (2 if text[end:end + 2] == "\r\n" else 1)
     return lines
 
 
@@ -297,31 +274,30 @@ def parse_date_value(value, params=None, vtimezones=None):
     return naive.replace(tzinfo=zone)
 
 
-def iter_date_list(prop, vtimezones=None, max_tokens=MAX_DATE_LIST_TOKENS):
-    """Lazily yield parsed dates/datetimes from a comma-separated property."""
-    raw = prop.value
-    n = len(raw)
-    pos = 0
-    seen_tokens = 0
-    while pos <= n:
-        if max_tokens is not None and seen_tokens >= max_tokens:
-            break
-        comma = raw.find(",", pos)
-        part = raw[pos:] if comma == -1 else raw[pos:comma]
-        seen_tokens += 1
-        part = part.strip()
-        if part and "/" not in part:  # PERIOD values are not supported for RDATE
-            try:
-                yield parse_date_value(part, prop.params, vtimezones)
-            except IcsError:
-                pass
-        if comma == -1:
-            break
-        pos = comma + 1
+def iter_date_list(props, vtimezones=None, budget=None):
+    """Dates of comma-separated RDATE / EXDATE properties, read lazily.
 
-
-def parse_date_list(prop, vtimezones=None, max_tokens=MAX_DATE_LIST_TOKENS):
-    return list(iter_date_list(prop, vtimezones, max_tokens=max_tokens))
+    `budget` is a one-item list holding how many values may still be read;
+    it is spent in place, so several calls can share it. One huge list then
+    costs bounded work and is never split into a list of its own.
+    """
+    if budget is None:
+        budget = [MAX_DATE_VALUES_PER_EVENT]
+    for prop in props:
+        raw = prop.value
+        pos = 0
+        while budget[0] > 0:
+            budget[0] -= 1
+            comma = raw.find(",", pos)
+            part = (raw[pos:] if comma == -1 else raw[pos:comma]).strip()
+            if part and "/" not in part:  # PERIOD values are not supported
+                try:
+                    yield parse_date_value(part, prop.params, vtimezones)
+                except IcsError:
+                    pass
+            if comma == -1:
+                break
+            pos = comma + 1
 
 
 _DUR_RE = re.compile(
@@ -767,71 +743,39 @@ def events_from_calendar(text, range_start, range_end, zone=None):
                     # Look back by the event length so one already running counts.
                     lookback = duration if isinstance(duration, dt.timedelta) else dt.timedelta(0)
                     win_start = range_start - lookback
-                    ex_start = win_start - dt.timedelta(days=1)
-                    ex_end = range_end + dt.timedelta(days=1)
+                    # One budget for the whole event: RDATE and EXDATE share the
+                    # values read, DTSTART, RRULE and RDATE share the
+                    # occurrences kept. Only exclusions near the window can
+                    # match an occurrence.
+                    values = [MAX_DATE_VALUES_PER_EVENT]
                     excluded = set()
-                    token_budget = MAX_DATE_LIST_TOKENS
-                    for ep in master.get_all("EXDATE"):
-                        if token_budget <= 0:
-                            break
-                        raw = ep.value
-                        pos, n = 0, len(raw)
-                        while pos <= n and token_budget > 0:
-                            comma = raw.find(",", pos)
-                            part = (raw[pos:] if comma == -1 else raw[pos:comma]).strip()
-                            token_budget -= 1
-                            if part and "/" not in part:
-                                try:
-                                    ex = parse_date_value(part, ep.params, vtz)
-                                    if _in_range(ex, ex_start, ex_end, zone):
-                                        excluded.add(occurrence_key(ex))
-                                except IcsError:
-                                    pass
-                            if comma == -1:
-                                break
-                            pos = comma + 1
+                    margin = dt.timedelta(days=1)
+                    for ex in iter_date_list(master.get_all("EXDATE"), vtz, values):
+                        if _in_range(ex, win_start - margin, range_end + margin, zone):
+                            excluded.add(occurrence_key(ex))
+                    starts = {}
 
-                    starts_by_key = {}
-
-                    def add_candidate(val):
-                        key = occurrence_key(val)
-                        if key in excluded or key in uid_overrides or key in starts_by_key:
-                            return
-                        starts_by_key[key] = val
+                    def keep(value):
+                        key = occurrence_key(value)
+                        if key not in excluded and key not in uid_overrides:
+                            starts.setdefault(key, value)
 
                     if _in_range(start, win_start, range_end, zone):
-                        add_candidate(start)
+                        keep(start)
                     if rrule:
                         r_limit = MAX_INSTANCES_PER_EVENT + len(excluded) + len(uid_overrides)
                         for rs in expand_rrule(rrule.value, start, win_start, range_end,
                                                max_instances=r_limit, zone=zone):
-                            add_candidate(rs)
-                            if len(starts_by_key) >= MAX_INSTANCES_PER_EVENT:
+                            keep(rs)
+                            if len(starts) >= MAX_INSTANCES_PER_EVENT:
                                 break
-                    rdate_budget = MAX_DATE_LIST_TOKENS
-                    for rp in master.get_all("RDATE"):
-                        if len(starts_by_key) >= MAX_INSTANCES_PER_EVENT or rdate_budget <= 0:
-                            break
-                        raw = rp.value
-                        pos, n = 0, len(raw)
-                        while pos <= n and rdate_budget > 0 and len(starts_by_key) < MAX_INSTANCES_PER_EVENT:
-                            comma = raw.find(",", pos)
-                            part = (raw[pos:] if comma == -1 else raw[pos:comma]).strip()
-                            rdate_budget -= 1
-                            if part and "/" not in part:
-                                try:
-                                    rd = parse_date_value(part, rp.params, vtz)
-                                    if _in_range(rd, win_start, range_end, zone):
-                                        add_candidate(rd)
-                                except IcsError:
-                                    pass
-                            if comma == -1:
-                                break
-                            pos = comma + 1
-
-                    for s in sorted(starts_by_key.values(), key=lambda v: _as_dt(v, zone)):
-                        if emitted_for_uid >= MAX_INSTANCES_PER_EVENT:
-                            break
+                    if len(starts) < MAX_INSTANCES_PER_EVENT:
+                        for rd in iter_date_list(master.get_all("RDATE"), vtz, values):
+                            if _in_range(rd, win_start, range_end, zone):
+                                keep(rd)
+                                if len(starts) >= MAX_INSTANCES_PER_EVENT:
+                                    break
+                    for s in sorted(starts.values(), key=lambda v: _as_dt(v, zone)):
                         rid_raw = _format_like(master.get("DTSTART"), s)
                         occ = _occurrence(master, uid, s, _occurrence_end(s, start, duration),
                                           True, rid_raw, vtz, zone)
