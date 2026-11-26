@@ -319,11 +319,11 @@ class Server:
             return
         self.recap_pending = False
         today = dt.datetime.now(self.engine.zone).date()
-        if self.last_recap_day == today.isoformat():
-            return
         if not self.engine.settings.get("dailyRecap", True) or not self.engine.accounts:
             return
         with self.state_lock:
+            if self.last_recap_day == today.isoformat():
+                return
             self.last_recap_day = today.isoformat()
             self.save_state()
         self.send_recap(today, events)
@@ -337,6 +337,8 @@ class Server:
         at = int(time.time() * 1000) + minutes * 60 * 1000
         with self.state_lock:
             self.snoozes.append({"key": "snooze|%s|%d" % (event_key, at), "eventKey": event_key, "at": at})
+            if len(self.snoozes) > 100:
+                self.snoozes = self.snoozes[-100:]
             self.save_state()
 
     # ------------------------------------------------------------ notifications

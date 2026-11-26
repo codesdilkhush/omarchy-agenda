@@ -734,7 +734,7 @@ def events_from_calendar(text, range_start, range_end, zone=None):
         for comp in cal.children:
             if comp.name != "VEVENT":
                 continue
-            uid = comp.value("UID").strip()[:256] or ("nouid-" + str(id(comp)))
+            uid = comp.value("UID").strip()[:500] or ("nouid-" + str(id(comp)))
             if comp.get("RECURRENCE-ID"):
                 overrides.setdefault(uid, []).append(comp)
             else:
@@ -978,6 +978,8 @@ def build_event(title, start, end, all_day=False, location="", description="",
 def add_exdate(text, uid, recurrence_id):
     """Exclude one occurrence from a series: add an EXDATE to the master,
     written in the same form as its DTSTART, and drop any override for it."""
+    uid = str(uid or "").strip()[:500]
+    recurrence_id = str(recurrence_id or "").strip()
     root = parse(text)
     vtz = _vtimezone_aliases(root)
     target_key = None
@@ -986,7 +988,7 @@ def add_exdate(text, uid, recurrence_id):
         if cal.name != "VCALENDAR":
             continue
         for comp in cal.children:
-            if comp.name == "VEVENT" and comp.value("UID").strip() == uid:
+            if comp.name == "VEVENT" and comp.value("UID").strip()[:500] == uid:
                 rid = comp.get("RECURRENCE-ID")
                 if rid is not None and rid.value.strip() == recurrence_id:
                     try:
@@ -1004,7 +1006,7 @@ def add_exdate(text, uid, recurrence_id):
             continue
         keep = []
         for comp in cal.children:
-            if comp.name == "VEVENT" and comp.value("UID").strip() == uid:
+            if comp.name == "VEVENT" and comp.value("UID").strip()[:500] == uid:
                 rid = comp.get("RECURRENCE-ID")
                 if rid is None:
                     start = comp.get("DTSTART")
@@ -1055,7 +1057,8 @@ def _rid_params(params, value):
 
 
 def _quote_param(value):
-    return '"' + value + '"' if any(c in value for c in ":;,") else value
+    cleaned = str(value).replace("\r", "").replace("\n", "").replace('"', "")
+    return '"' + cleaned + '"' if any(c in cleaned for c in ":;,") else cleaned
 
 
 def serialize(root):

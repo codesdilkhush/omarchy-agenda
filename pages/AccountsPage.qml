@@ -57,7 +57,7 @@ Column {
 
           PlainLabel {
             width: parent.width
-            text: accountColumn.modelData.label
+            text: accountColumn.modelData.label || accountColumn.modelData.username || "…"
             color: root.panel.fg
             font.family: root.panel.fontFamily
             font.bold: true
@@ -99,6 +99,7 @@ Column {
           anchors.verticalCenter: parent.verticalCenter
           iconText: "\u{F01B4}"
           tooltipText: root.panel.strings.t("accounts.remove")
+          enabled: !root.panel.busy
           foreground: root.panel.fg
           hoverColor: Commons.Color.urgent
           fontFamily: root.panel.fontFamily
@@ -143,6 +144,7 @@ Column {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             checked: calRow.modelData.enabled
+            enabled: !root.panel.busy
             foreground: root.panel.fg
             onToggled: root.panel.setCalendarEnabled(accountColumn.modelData.id, calRow.modelData.id, !calRow.modelData.enabled)
           }

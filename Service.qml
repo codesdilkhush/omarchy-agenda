@@ -43,6 +43,7 @@ Item {
 
   property int nextId: 1
   property var callbacks: ({})
+  property int activeCallbackCount: 0
 
   function request(op, params, callback) {
     if (!helper.running) {
@@ -50,7 +51,11 @@ Item {
       return
     }
     var id = nextId++
-    if (callback) callbacks[id] = callback
+    if (callback) {
+      var isLogin = op === "connect" || op === "discover" || op === "reconnect"
+      callbacks[id] = { cb: callback, deadline: Date.now() + (isLogin ? 360000 : 90000) }
+      activeCallbackCount = Object.keys(callbacks).length
+    }
     helper.write(JSON.stringify({ id: id, op: op, params: params || {} }) + "\n")
   }
 
@@ -64,10 +69,11 @@ Item {
     if (msg.event === "state") applyState(msg.state)
     else if (msg.event === "open") root.openRequested("agenda")
     else if (msg.id !== undefined) {
-      var cb = callbacks[msg.id]
-      if (cb) {
+      var entry = callbacks[msg.id]
+      if (entry) {
         delete callbacks[msg.id]
-        try { cb(msg) } catch (e2) { console.warn("agenda: callback failed", e2) }
+        activeCallbackCount = Object.keys(callbacks).length
+        try { entry.cb(msg) } catch (e2) { console.warn("agenda: callback failed", e2) }
       }
     }
   }
@@ -111,8 +117,9 @@ Item {
         // Fail every pending call rather than leave the UI waiting forever.
         var pending = root.callbacks
         root.callbacks = ({})
+        root.activeCallbackCount = 0
         for (var id in pending) {
-          try { pending[id]({ ok: false, error: { code: "backend_down", detail: "" } }) } catch (e) {}
+          try { pending[id].cb({ ok: false, error: { code: "backend_down", detail: "" } }) } catch (e) {}
         }
         if (root.destroying) return
         restartTimer.interval = root.restartDelay
@@ -126,6 +133,27 @@ Item {
     id: restartTimer
     repeat: false
     onTriggered: if (!root.destroying) helper.running = true
+  }
+
+  Timer {
+    id: requestTimeoutTimer
+    interval: 5000
+    repeat: true
+    running: !root.destroying && root.activeCallbackCount > 0
+    onTriggered: {
+      var now = Date.now()
+      var expired = []
+      for (var id in root.callbacks) {
+        if (root.callbacks[id].deadline <= now) expired.push(id)
+      }
+      if (expired.length === 0) return
+      for (var i = 0; i < expired.length; i++) {
+        var entry = root.callbacks[expired[i]]
+        delete root.callbacks[expired[i]]
+        try { entry.cb({ ok: false, error: { code: "timeout", detail: "" } }) } catch (e) {}
+      }
+      root.activeCallbackCount = Object.keys(root.callbacks).length
+    }
   }
 
   Component.onCompleted: helper.running = true

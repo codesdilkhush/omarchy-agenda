@@ -331,6 +331,14 @@ SUMMARY:S moved"""))
         occ = ics.events_from_calendar(updated, *window(2026, 11, 20, 2026, 12, 1))
         self.assertEqual(starts(occ), ["2026-11-23 09:00"])
 
+    def test_long_uid_matches_add_exdate(self):
+        uid = "u" * 300
+        text = wrap(vevent(f"UID:{uid}\nDTSTART:20261123T080000Z\nRRULE:FREQ=DAILY;COUNT=2\nSUMMARY:Long"))
+        occ = ics.events_from_calendar(text, *window(2026, 11, 20, 2026, 12, 1))
+        self.assertEqual(occ[0]["uid"], uid)
+        updated = ics.add_exdate(text, occ[0]["uid"], occ[1]["recurrence_id"])
+        self.assertEqual(len(ics.events_from_calendar(updated, *window(2026, 11, 20, 2026, 12, 1))), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
