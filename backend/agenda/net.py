@@ -82,16 +82,38 @@ def _host_detail(url):
     return (urllib.parse.urlsplit(url).hostname or "").lower()
 
 
-def _is_unsafe_redirect_host(host):
+def _is_internal_ip(ip):
+    return (ip.is_private or ip.is_loopback or ip.is_link_local
+            or ip.is_multicast or ip.is_reserved or ip.is_unspecified)
+
+
+def _is_internal_host(host, resolve=False):
+    """True for a host on the local machine or network.
+
+    With `resolve`, a name is looked up too, so a public name pointing at a
+    private address counts. That is best effort: the lookup is not pinned
+    for the connection that follows.
+    """
     h = (host or "").strip("[]").lower().rstrip(".")
     if not h or h == "localhost" or h.endswith(".localhost") or h.endswith(".local"):
         return True
     try:
-        ip = ipaddress.ip_address(h)
-        return (ip.is_private or ip.is_loopback or ip.is_link_local
-                or ip.is_multicast or ip.is_reserved or ip.is_unspecified)
+        return _is_internal_ip(ipaddress.ip_address(h))
     except ValueError:
+        pass
+    if not resolve:
         return False
+    try:
+        infos = socket.getaddrinfo(h, 443, type=socket.SOCK_STREAM)
+    except (OSError, UnicodeError):
+        return False  # the connection will fail on its own
+    for info in infos:
+        try:
+            if _is_internal_ip(ipaddress.ip_address(info[4][0].split("%", 1)[0])):
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 def _clean_headers(headers):
@@ -132,12 +154,16 @@ def request(method, url, headers=None, body=None, auth=None, scope=None,
     ctx = _ssl_context()
 
     initial_host = _host_detail(url)
+    # A server on the local network may redirect within it; a public one may
+    # not send the request (and its credentials) there.
+    initial_internal = _is_internal_host(initial_host)
     for hop in range(MAX_REDIRECTS + 1):
         parts = urllib.parse.urlsplit(url)
         if parts.scheme != "https" or not parts.hostname:
             raise NetError("insecure_url", _host_detail(url))
         host = parts.hostname
-        if hop > 0 and host.lower() != initial_host and _is_unsafe_redirect_host(host):
+        if (hop > 0 and not initial_internal and host.lower() != initial_host
+                and _is_internal_host(host, resolve=True)):
             raise NetError("insecure_url", host)
         port = parts.port or 443
         path = parts.path or "/"

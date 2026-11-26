@@ -221,6 +221,11 @@ class Server:
             if rid is not None:
                 self.emit({"id": rid, "ok": False,
                            "error": {"code": exc.code, "detail": str(exc.detail)[:300]}})
+        except storage.StorageError as exc:
+            if rid is not None:
+                code = "corrupt_secrets" if str(exc) == "corrupt_secrets" else "storage"
+                self.emit({"id": rid, "ok": False,
+                           "error": {"code": code, "detail": str(exc)[:300]}})
         except Exception as exc:  # never let one bad request kill the helper
             sys.stderr.write("agenda: %s failed: %s\n" % (req.get("op"), type(exc).__name__))
             if rid is not None:

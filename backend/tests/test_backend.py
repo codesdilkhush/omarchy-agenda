@@ -74,11 +74,36 @@ class FakeResp:
 
 
 class RedirectTests(unittest.TestCase):
+    # Names the tests resolve, so no test touches real DNS.
+    ADDRESSES = {"intranet.example.com": "10.0.0.5"}
+
     def setUp(self):
         FakeConn.seen = []
         patcher = mock.patch("http.client.HTTPSConnection", FakeConn)
         patcher.start()
         self.addCleanup(patcher.stop)
+
+        def lookup(host, port, *args, **kwargs):
+            ip = self.ADDRESSES.get(host, "93.184.216.34")
+            return [(2, 1, 6, "", (ip, port))]
+        dns = mock.patch("socket.getaddrinfo", side_effect=lookup)
+        dns.start()
+        self.addCleanup(dns.stop)
+
+    def test_redirect_to_name_on_private_address_refused(self):
+        FakeConn.routes = {("GET", "a.example.com", "/"):
+                           (302, {"Location": "https://intranet.example.com/"}, "")}
+        with self.assertRaises(net.NetError) as ctx:
+            net.request("GET", "https://a.example.com/", auth="Basic x")
+        self.assertEqual(ctx.exception.code, "insecure_url")
+
+    def test_lan_server_may_redirect_within_lan(self):
+        FakeConn.routes = {
+            ("GET", "nas.local", "/"): (302, {"Location": "https://192.168.1.20/dav"}, ""),
+            ("GET", "192.168.1.20", "/dav"): (200, {}, "ok"),
+        }
+        resp = net.request("GET", "https://nas.local/")
+        self.assertEqual(resp.status, 200)
 
     def test_credentials_not_sent_off_domain(self):
         FakeConn.routes = {

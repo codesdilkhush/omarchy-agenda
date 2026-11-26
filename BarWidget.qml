@@ -31,19 +31,14 @@ BarWidget {
     }
   }
 
-  onBarChanged: { bindRetryTimer.retries = 0; bindService(); injectPanel() }
+  onBarChanged: { bindService(); injectPanel() }
   onSettingsChanged: injectPanel()
 
   Timer {
-    id: bindRetryTimer
-    property int retries: 0
     interval: 250
     repeat: true
-    running: root.service === null && retries < 40
-    onTriggered: {
-      retries++
-      root.bindService()
-    }
+    running: root.service === null
+    onTriggered: root.bindService()
   }
 
   Connections {
