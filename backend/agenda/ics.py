@@ -15,6 +15,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 MAX_ICS_BYTES = 10 * 1024 * 1024
 MAX_LINES = 400_000
 MAX_INSTANCES_PER_EVENT = 500
+# RDATE and EXDATE values read per event, all their properties together.
+MAX_DATE_VALUES_PER_EVENT = 5_000
 MAX_PERIODS = 100_000
 MAX_TEXT = {"SUMMARY": 300, "LOCATION": 300, "DESCRIPTION": 2000}
 
@@ -266,17 +268,30 @@ def parse_date_value(value, params=None, vtimezones=None):
     return naive.replace(tzinfo=zone)
 
 
-def parse_date_list(prop, vtimezones=None):
-    out = []
-    for part in prop.value.split(","):
-        part = part.strip()
-        if not part or "/" in part:  # PERIOD values are not supported for RDATE
-            continue
-        try:
-            out.append(parse_date_value(part, prop.params, vtimezones))
-        except IcsError:
-            continue
-    return out
+def iter_date_list(props, vtimezones=None, budget=None):
+    """Dates of comma-separated RDATE / EXDATE properties, read lazily.
+
+    `budget` is a one-item list holding how many values may still be read;
+    it is spent in place, so several calls can share it. One huge list then
+    costs bounded work and is never split into a list of its own.
+    """
+    if budget is None:
+        budget = [MAX_DATE_VALUES_PER_EVENT]
+    for prop in props:
+        raw = prop.value
+        pos = 0
+        while budget[0] > 0:
+            budget[0] -= 1
+            comma = raw.find(",", pos)
+            part = (raw[pos:] if comma == -1 else raw[pos:comma]).strip()
+            if part and "/" not in part:  # PERIOD values are not supported
+                try:
+                    yield parse_date_value(part, prop.params, vtimezones)
+                except IcsError:
+                    pass
+            if comma == -1:
+                break
+            pos = comma + 1
 
 
 _DUR_RE = re.compile(
@@ -690,23 +705,33 @@ def events_from_calendar(text, range_start, range_end, zone=None):
             if recurring:
                 # Look back by the event length so one already running counts.
                 lookback = duration if isinstance(duration, dt.timedelta) else dt.timedelta(0)
-                starts = []
-                if rrule:
-                    starts = expand_rrule(rrule.value, start, range_start - lookback, range_end)
-                for rp in master.get_all("RDATE"):
-                    for rd in parse_date_list(rp, vtz):
-                        if _in_range(rd, range_start - lookback, range_end):
-                            starts.append(rd)
+                win_start = range_start - lookback
+                # One budget for the whole event: RDATE and EXDATE share the
+                # values read, RRULE and RDATE share the occurrences kept.
+                # Only exclusions near the window can match an occurrence.
+                values = [MAX_DATE_VALUES_PER_EVENT]
                 excluded = set()
-                for ep in master.get_all("EXDATE"):
-                    for ex in parse_date_list(ep, vtz):
+                margin = dt.timedelta(days=1)
+                for ex in iter_date_list(master.get_all("EXDATE"), vtz, values):
+                    if _in_range(ex, win_start - margin, range_end + margin):
                         excluded.add(occurrence_key(ex))
-                seen = set()
-                for s in sorted(starts, key=lambda v: _as_dt(v, zone)):
-                    key = occurrence_key(s)
-                    if key in excluded or key in seen:
-                        continue
-                    seen.add(key)
+                starts = {}
+
+                def keep(value):
+                    key = occurrence_key(value)
+                    if key not in excluded:
+                        starts.setdefault(key, value)
+
+                if rrule:
+                    for rs in expand_rrule(rrule.value, start, win_start, range_end):
+                        keep(rs)
+                if len(starts) < MAX_INSTANCES_PER_EVENT:
+                    for rd in iter_date_list(master.get_all("RDATE"), vtz, values):
+                        if _in_range(rd, win_start, range_end):
+                            keep(rd)
+                            if len(starts) >= MAX_INSTANCES_PER_EVENT:
+                                break
+                for key, s in sorted(starts.items(), key=lambda kv: _as_dt(kv[1], zone)):
                     if key in uid_overrides:
                         continue  # emitted from the override below
                     rid_raw = _format_like(master.get("DTSTART"), s)

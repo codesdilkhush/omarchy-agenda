@@ -2,6 +2,7 @@ import datetime as dt
 import os
 import sys
 import unittest
+from unittest import mock
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -230,6 +231,31 @@ RRULE:FREQ=WEEKLY""", window(2026, 11, 25, 2026, 11, 26))
 DTSTART:20261101T000000Z
 RRULE:FREQ=DAILY""", window(2026, 11, 1, 2030, 1, 1))
         self.assertEqual(len(got), ics.MAX_INSTANCES_PER_EVENT)
+
+    def test_rdate_exdate_budget(self):
+        # A huge RDATE list (every minute for ~6 months) and a huge EXDATE list:
+        # occurrences stay capped and the lists are read only up to the budget.
+        base = dt.datetime(2026, 11, 1, tzinfo=UTC)
+        dates = ",".join((base + dt.timedelta(minutes=i)).strftime("%Y%m%dT%H%M%SZ")
+                         for i in range(250_000))
+        text = wrap(vevent("UID:big\nDTSTART:20261101T000000Z\nRRULE:FREQ=DAILY\n"
+                           "RDATE:" + dates + "\nEXDATE:" + dates + "\nSUMMARY:Flood"))
+        calls = []
+        real = ics.parse_date_value
+        with mock.patch.object(ics, "parse_date_value",
+                               side_effect=lambda *a, **k: calls.append(1) or real(*a, **k)):
+            occ = ics.events_from_calendar(text, *window(2026, 11, 1, 2028, 1, 1))
+        self.assertLessEqual(len(occ), ics.MAX_INSTANCES_PER_EVENT)
+        self.assertLessEqual(len(calls), ics.MAX_DATE_VALUES_PER_EVENT + 10)
+
+    def test_rdate_dedup_and_exdate(self):
+        got = self.occ("""UID:r
+DTSTART:20261123T090000Z
+RRULE:FREQ=DAILY;COUNT=2
+RDATE:20261124T090000Z,20261126T090000Z,20261126T090000Z
+RDATE:20261127T090000Z
+EXDATE:20261123T090000Z,20261127T090000Z""", window(2026, 11, 20, 2026, 12, 1, UTC), UTC)
+        self.assertEqual(got, ["2026-11-24 09:00", "2026-11-26 09:00"])
 
 
 class WriteTests(unittest.TestCase):
